@@ -1,0 +1,7 @@
+*
+!Dockerfile
+!nginx.conf
+!layouts.mjs
+!presets.mjs
+!public/
+!public/**

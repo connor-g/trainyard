@@ -1,0 +1,11 @@
+{
+  "id": "./",
+  "name": "Caleb's Train Yard",
+  "short_name": "Caleb's Train Yard",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f4eb",
+  "theme_color": "#f7f4eb",
+  "icons": [{"src":"yard.png","sizes":"180x180","type":"image/png"},{"src":"yard.svg","sizes":"any","type":"image/svg+xml"}]
+}
