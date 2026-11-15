@@ -512,7 +512,7 @@ function trackEdits(item, index) {
   if (occupied.has(index)) return null;
   if (!item.tile) return fitTrack(layout.grid, index, item.type, occupied, null, cols);
   const source = item.index;
-  if (layout.grid[source] !== item.tile || layout.grid[index] || occupied.has(source)) return null;
+  if (source === index || layout.grid[source] !== item.tile || occupied.has(source)) return null;
   const grid = layout.grid.slice();
   grid[source] = null;
   return [[source, null], ...fitTrack(grid, index, item.type, occupied, item.tile, cols)];
@@ -633,7 +633,7 @@ function dropPiece(cell, item) {
   if (item.kind === 'track' || item.tile) {
     if (item.tile && index === item.index) return;
     const edits = trackEdits(item, index);
-    if (!edits) return notify(item.tile && tile ? 'Drop the track on an empty square.' : 'Wait for the train to clear this square.');
+    if (!edits) return notify('Wait for the train to clear this square.');
     if (!item.tile && edits.length === 1 && tile?.type === item.type && tile.turn === edits[0][1].turn) return;
     const previous = snapshot();
     for (const [square, track] of edits) layout.grid[square] = track;
