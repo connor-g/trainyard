@@ -4,6 +4,8 @@ A model railway for kids that runs in the browser, designed for my toddler son. 
 
 I built the app entirely with Codex and haven’t personally reviewed any of the code. Most of the app came from a single paragraph-long prompt. I spent a few more hours iterating with Codex based on how my son played with it. The UI was designed for a 13" iPad and has not been tested on any other devices or layouts.
 
+<img width="1600" height="1200" alt="Screenshot 2026-11-13 at 9 09 33 PM" src="https://github.com/user-attachments/assets/b938a882-d6fe-4ac4-9f4a-1aa8d2d290c9" />
+
 ## Run locally
 
 With Docker and Docker Compose installed, run these commands in Terminal.
