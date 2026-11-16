@@ -1,5 +1,5 @@
-@font-face{font-family:DM Sans;src:url(dm-sans.woff2) format("woff2");font-weight:400 800;font-display:swap}
-@font-face{font-family:DM Serif Text;src:url(dm-serif.woff2) format("woff2");font-display:swap}
+@font-face{font-family:DM Sans;src:url(/dm-sans.woff2) format("woff2");font-weight:400 800;font-display:swap}
+@font-face{font-family:DM Serif Text;src:url(/dm-serif.woff2) format("woff2");font-display:swap}
 :root{color-scheme:light;--paper:#f7f4eb;--panel:#fffdf7;--ink:#28372a;--muted:#596255;--line:#e2dfd1;--green:#31583d;--accent:#e7a348;--serif:"DM Serif Text",Georgia,serif;font-family:"DM Sans",system-ui,sans-serif;font-weight:500;color:var(--ink);background:var(--paper)}
 *{box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden;overscroll-behavior:none;touch-action:none}

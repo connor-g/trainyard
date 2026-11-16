@@ -2,7 +2,7 @@ import {createHash, randomUUID} from 'node:crypto';
 import {mkdir, readFile, readdir, rename, unlink, writeFile} from 'node:fs/promises';
 import {createServer} from 'node:http';
 import {join} from 'node:path';
-import {COLORS, GRID_SIZES, STOCK, TRACK, expandStandardYard, gridSize, sampleLayout, segment} from './public/railway.mjs';
+import {COLORS, GRID_SIZES, STOCK, TRACK, expandStandardYard, gridSize, sampleLayout, segment} from './src/railway.mjs';
 import {scenicPresets} from './presets.mjs';
 
 const directory = process.env.LAYOUT_DIRECTORY ?? '/data';

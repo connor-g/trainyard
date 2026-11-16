@@ -1,4 +1,4 @@
-import {blankLayout, couple, indexAt, startTrain, trackPaths} from './public/railway.mjs';
+import {blankLayout, couple, indexAt, startTrain, trackPaths} from './src/railway.mjs';
 
 function stepPort(x, y, otherX, otherY) {
   if (x === otherX) return otherY < y ? 0 : 2;

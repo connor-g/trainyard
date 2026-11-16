@@ -4,14 +4,14 @@
     "target": "es2025",
     "lib": ["es2025", "dom", "dom.iterable"],
     "module": "nodenext",
-    "types": ["node"],
+    "types": ["node", "vite-plus/client"],
 
     "strict": true,
     "erasableSyntaxOnly": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
 
-    // Type-check only; Node runs .mts directly by stripping types.
+    // Type-check only; Vite+ bundles the app and Node runs .mts directly by stripping types.
     "noEmit": true,
     "allowImportingTsExtensions": true,
 
@@ -19,5 +19,5 @@
     "allowJs": true,
     "checkJs": false
   },
-  "include": ["*.mjs", "*.mts", "public/**/*.mjs", "public/**/*.mts"]
+  "include": ["*.mjs", "*.mts", "*.ts", "src/**/*.mjs", "src/**/*.mts", "src/**/*.ts"]
 }
