@@ -27,6 +27,14 @@
         <div class="layout-toolbar">
           <h2 id="layout-name">Meadow Loop</h2>
           <button class="button secondary" id="layouts"></button>
+          <button
+            type="button"
+            class="button"
+            id="undo"
+            aria-label="Undo"
+            title="Undo the last edit"
+            disabled
+          ></button>
         </div>
       </div>
     </header>
@@ -45,10 +53,6 @@
           </div>
           <div id="swatches" class="swatches" role="group" aria-label="Car color"></div>
         </section>
-        <div class="edit-actions">
-          <div id="remove" class="remove" aria-label="Drag a track or car here to remove it"></div>
-          <button id="undo" class="undo" title="Undo the last edit"></button>
-        </div>
       </aside>
 
       <section class="yard" aria-labelledby="layout-name">
@@ -78,6 +82,7 @@
         </div>
         <div class="yard-footer">
           <span id="tool-hint"></span>
+          <div id="remove" class="remove"></div>
           <div class="train-controls">
             <div class="speed" role="group" aria-label="Train speed">
               <span>Speed</span>

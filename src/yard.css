@@ -88,9 +88,11 @@
     --danger-fill: color-mix(in srgb, var(--system-red) 10%, transparent);
     --danger-fill-strong: color-mix(in srgb, var(--system-red) 22%, transparent);
     --danger-border: var(--system-red);
+    --danger-border-strong: var(--accessible-red);
     --danger-ink: var(--accessible-red);
     --danger-ink-strong: var(--accessible-red);
     --dashed: var(--system-gray3);
+    --dashed-fill: var(--surface-sunken);
     --dashed-ink: var(--system-gray);
 
     /* Yard: the board is artwork, not interface chrome, so it keeps its own palette. */
@@ -196,6 +198,7 @@
     --mix-edge: 22%;
     --mix-border: 45%;
     --mix-scrim: 40%;
+    --mix-ring: 25%;
     --mix-material: 82%;
     --mix-shadow: 23%;
     --mix-shadow-deep: 28%;
@@ -349,6 +352,8 @@
     --sidebar-fluid: 35vw; /* sidebar share of the width on short landscape screens */
     --palette-share: 52%; /* portrait: the track palette's minimum share of the height */
     --palette-weight: 0.8fr;
+    --workbench-min: calc(var(--spacing) * 180); /* portrait: 720px */
+    --workbench-share: 70%;
     --gutter-block: var(--space-4);
     --gutter-inline: var(--space-6);
 
@@ -372,7 +377,10 @@
       --gutter-block: var(--space-3);
       --gutter-inline: var(--space-3);
       grid-template-columns: minmax(0, 1fr);
-      grid-template-rows: minmax(0, 1fr) auto;
+      grid-template-rows: minmax(0, 1fr) minmax(
+          min(var(--workbench-min), var(--workbench-share)),
+          1fr
+        );
       gap: var(--space-2);
 
       /* The track palette needs more room than the car palette. */
@@ -541,7 +549,8 @@
     white-space: nowrap;
   }
 
-  #layouts {
+  #layouts,
+  #undo {
     flex: none;
 
     @media (width <= 560px) and (orientation: portrait) {
@@ -606,11 +615,23 @@
       border-color: var(--line);
       box-shadow: var(--shadow-segment);
     }
+
+    @media (width <= 560px) and (orientation: portrait) {
+      min-block-size: var(--size-12);
+    }
+
+    @media (height <= 770px) and (orientation: landscape) {
+      min-block-size: var(--size-12);
+    }
+
+    @media (height <= 540px) and (orientation: landscape) {
+      min-block-size: var(--size-10);
+      font-size: var(--text-caption);
+    }
   }
 
   .palette {
     --columns: 3;
-    --row-fluid: 6dvh;
 
     display: grid;
     flex: 1;
@@ -620,8 +641,6 @@
     gap: var(--space-2);
 
     @media (width <= 1100px) and (orientation: portrait) {
-      flex: none;
-      grid-auto-rows: clamp(var(--size-12), var(--row-fluid), var(--size-20));
       gap: var(--space-2);
     }
 
@@ -698,11 +717,6 @@
   .palette[data-kind="track"] {
     --columns: 2;
     gap: var(--space-2);
-
-    @media (width <= 1100px) and (orientation: portrait) {
-      flex: 1;
-      grid-auto-rows: minmax(0, 1fr);
-    }
 
     & .piece {
       display: grid;
@@ -793,68 +807,6 @@
       --dot: var(--size-6);
       block-size: var(--size-8);
       padding: var(--hairline);
-    }
-  }
-
-  .edit-actions {
-    flex: none;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: var(--space-2);
-  }
-
-  .remove,
-  .undo {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
-    min-block-size: var(--size-14);
-    padding: var(--space-1) var(--space-3);
-    border-radius: var(--radius-card);
-    font-size: var(--text-subhead);
-    font-weight: var(--semibold);
-  }
-
-  .remove {
-    border: var(--hairline) dashed var(--dashed);
-    background: var(--surface-sunken);
-    color: var(--dashed-ink);
-    user-select: none;
-
-    &.available {
-      background: var(--danger-fill);
-      border-color: var(--danger-border);
-      color: var(--danger-ink);
-    }
-
-    &.targeted {
-      background: var(--danger-fill-strong);
-      border: var(--hairline-thick) solid var(--danger-border);
-      color: var(--danger-ink-strong);
-    }
-  }
-
-  .undo {
-    background: var(--surface);
-    border: var(--hairline) solid var(--line);
-  }
-
-  /* Shared compact sizing for the big workbench buttons. */
-  .tab,
-  .undo,
-  .remove {
-    @media (width <= 560px) and (orientation: portrait) {
-      min-block-size: var(--size-12);
-    }
-
-    @media (height <= 770px) and (orientation: landscape) {
-      min-block-size: var(--size-12);
-    }
-
-    @media (height <= 540px) and (orientation: landscape) {
-      min-block-size: var(--size-10);
-      font-size: var(--text-caption);
     }
   }
 
@@ -956,24 +908,62 @@
   }
 
   .yard-footer {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);
+    grid-template-areas: "hint remove controls";
     align-items: center;
     gap: var(--space-2);
-    min-block-size: var(--size-10);
 
-    /* On narrow phones the hint gets its own row instead of wrapping into a tall column. */
-    @media (width <= 560px) and (orientation: portrait) {
-      flex-wrap: wrap;
-      row-gap: var(--space-2);
+    @media (width <= 800px) and (orientation: landscape),
+      (width <= 560px) and (orientation: portrait) {
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas:
+        "hint remove"
+        "controls controls";
+    }
+  }
 
-      & #tool-hint {
-        flex-basis: 100%;
-      }
+  .remove {
+    grid-area: remove;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-block-size: var(--tap);
+    padding: var(--space-1) var(--space-3);
+    border: var(--hairline-thick) dashed var(--dashed);
+    border-radius: var(--radius-card);
+    background: var(--dashed-fill);
+    color: var(--dashed-ink);
+    font-size: var(--text-footnote);
+    font-weight: var(--semibold);
+    text-align: center;
+    user-select: none;
+
+    &.available {
+      background: var(--danger-fill);
+      border-color: var(--danger-border);
+      color: var(--danger-ink);
+    }
+
+    &.targeted {
+      background: var(--danger-fill-strong);
+      border-style: solid;
+      border-color: var(--danger-border-strong);
+      color: var(--danger-ink-strong);
+      box-shadow: 0 0 0 var(--hairline-thick)
+        color-mix(in oklab, var(--danger-border) var(--mix-ring), transparent);
+    }
+
+    @media (width <= 800px) and (orientation: landscape),
+      (width <= 560px) and (orientation: portrait) {
+      padding-inline: var(--space-2);
+      font-size: var(--text-caption);
     }
   }
 
   #tool-hint {
+    grid-area: hint;
     display: flex;
     align-items: center;
     gap: var(--space-2);
@@ -988,11 +978,11 @@
   }
 
   .train-controls {
+    grid-area: controls;
+    justify-self: end;
     display: flex;
-    flex: none;
     align-items: center;
     gap: var(--space-2);
-    margin-inline-start: auto;
   }
 
   .speed {
@@ -1007,7 +997,8 @@
     & span {
       margin-inline-end: var(--space-2);
 
-      @media (width <= 560px) and (orientation: portrait) {
+      @media (width <= 800px) and (orientation: landscape),
+        (width <= 560px) and (orientation: portrait) {
         display: none;
       }
     }

@@ -360,10 +360,10 @@ function updateStatus() {
 const buttons: [id: string, symbol: Symbol, text: string][] = [
   ["track-tab", "track", "Track"],
   ["cars-tab", "cars", "Train cars"],
-  ["remove", "remove", "Remove"],
-  ["undo", "undo", "Undo"],
+  ["remove", "remove", "Drag Here to Remove"],
 ];
 for (const [id, symbol, text] of buttons) $(id).innerHTML = icon(symbol) + text;
+$("undo").innerHTML = icon("undo") + "<span>Undo</span>";
 $("layouts").innerHTML = icon("layout") + "<span>Layouts</span>";
 $("layouts").setAttribute("aria-label", "Layouts");
 dialog.querySelector(".close")!.innerHTML = icon("close");
