@@ -58,13 +58,15 @@
     --selected-border: light-dark(#b6813d, #d6a05a);
     --positive-fill: light-dark(#eaf0df, #2d3d2c);
     --positive-border: light-dark(#c7d5bb, #4b6145);
-    --danger-fill: light-dark(#f5e7db, #45291f);
-    --danger-fill-strong: light-dark(#eed1bd, #5c3324);
-    --danger-border: light-dark(#a3674e, #d48e70);
-    --danger-ink: light-dark(#874d34, #f0b49a);
-    --danger-ink-strong: light-dark(#743e28, #f8c9b2);
-    --dashed: light-dark(#aaa590, #6c7266);
-    --dashed-ink: light-dark(#645e4c, #b8b29e);
+    --danger-fill: light-dark(#fae6d7, #45291f);
+    --danger-fill-strong: light-dark(#edc2a7, #5c3324);
+    --danger-border: light-dark(#ac6647, #d48e70);
+    --danger-border-strong: light-dark(#9b5033, #edab91);
+    --danger-ink: light-dark(#7d3e29, #f0b49a);
+    --danger-ink-strong: light-dark(#66311f, #f8c9b2);
+    --dashed: light-dark(#ded9cc, #6c7266);
+    --dashed-fill: light-dark(#faf8f0, #29322a);
+    --dashed-ink: light-dark(#817969, #b8b29e);
 
     /* Yard */
     --frame: light-dark(#e9edda, #263123);
@@ -222,7 +224,7 @@
       --gutter-block: 12px;
       --gutter-inline: 12px;
       grid-template-columns: minmax(0, 1fr);
-      grid-template-rows: minmax(0, 1fr) auto;
+      grid-template-rows: minmax(0, 1fr) minmax(min(720px, 70%), 1fr);
       gap: 10px;
 
       /* The track palette needs more room than the car palette. */
@@ -398,7 +400,8 @@
     white-space: nowrap;
   }
 
-  #layouts {
+  #layouts,
+  #undo {
     flex: none;
 
     @media (width <= 560px) and (orientation: portrait) {
@@ -462,6 +465,19 @@
       border-color: var(--line);
       box-shadow: 0 1px 2px color-mix(in oklab, var(--shade) 7%, transparent);
     }
+
+    @media (width <= 560px) and (orientation: portrait) {
+      min-block-size: 42px;
+    }
+
+    @media (height <= 770px) and (orientation: landscape) {
+      min-block-size: 46px;
+    }
+
+    @media (height <= 540px) and (orientation: landscape) {
+      min-block-size: 35px;
+      font-size: 12px;
+    }
   }
 
   .palette {
@@ -473,8 +489,6 @@
     gap: 8px;
 
     @media (width <= 1100px) and (orientation: portrait) {
-      flex: none;
-      grid-auto-rows: clamp(48px, 6dvh, 84px);
       gap: 6px;
     }
 
@@ -551,11 +565,6 @@
   .palette[data-kind="track"] {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
-
-    @media (width <= 1100px) and (orientation: portrait) {
-      flex: 1;
-      grid-auto-rows: minmax(0, 1fr);
-    }
 
     & .piece {
       display: grid;
@@ -642,68 +651,6 @@
       --dot: 24px;
       block-size: 28px;
       padding: 1px;
-    }
-  }
-
-  .edit-actions {
-    flex: none;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 8px;
-  }
-
-  .remove,
-  .undo {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    min-block-size: 54px;
-    padding: 5px 11px;
-    border-radius: 11px;
-    font-size: 14px;
-    font-weight: 800;
-  }
-
-  .remove {
-    border: 1px dashed var(--dashed);
-    background: var(--paper);
-    color: var(--dashed-ink);
-    user-select: none;
-
-    &.available {
-      background: var(--danger-fill);
-      border-color: var(--danger-border);
-      color: var(--danger-ink);
-    }
-
-    &.targeted {
-      background: var(--danger-fill-strong);
-      border: 2px solid var(--danger-border);
-      color: var(--danger-ink-strong);
-    }
-  }
-
-  .undo {
-    background: var(--surface);
-    border: 1px solid var(--line);
-  }
-
-  /* Shared compact sizing for the big workbench buttons. */
-  .tab,
-  .undo,
-  .remove {
-    @media (width <= 560px) and (orientation: portrait) {
-      min-block-size: 42px;
-    }
-
-    @media (height <= 770px) and (orientation: landscape) {
-      min-block-size: 46px;
-    }
-
-    @media (height <= 540px) and (orientation: landscape) {
-      min-block-size: 35px;
-      font-size: 12px;
     }
   }
 
@@ -810,14 +757,62 @@
   }
 
   .yard-footer {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);
+    grid-template-areas: "hint remove controls";
     align-items: center;
     gap: 10px;
-    min-block-size: 36px;
+
+    @media (width <= 800px) and (orientation: landscape),
+      (width <= 560px) and (orientation: portrait) {
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas:
+        "hint remove"
+        "controls controls";
+      gap: 5px 8px;
+    }
+  }
+
+  .remove {
+    grid-area: remove;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-block-size: var(--tap);
+    padding: 4px 12px;
+    border: 2px dashed var(--dashed);
+    border-radius: var(--radius-control);
+    background: var(--dashed-fill);
+    color: var(--dashed-ink);
+    font-size: 13px;
+    font-weight: 750;
+    text-align: center;
+    user-select: none;
+
+    &.available {
+      background: var(--danger-fill);
+      border-color: var(--danger-border);
+      color: var(--danger-ink);
+    }
+
+    &.targeted {
+      background: var(--danger-fill-strong);
+      border-style: solid;
+      border-color: var(--danger-border-strong);
+      color: var(--danger-ink-strong);
+      box-shadow: 0 0 0 2px color-mix(in oklab, var(--danger-border) 25%, transparent);
+    }
+
+    @media (width <= 800px) and (orientation: landscape),
+      (width <= 560px) and (orientation: portrait) {
+      padding-inline: 7px;
+      font-size: 12px;
+    }
   }
 
   #tool-hint {
+    grid-area: hint;
     display: flex;
     align-items: center;
     gap: 7px;
@@ -832,11 +827,11 @@
   }
 
   .train-controls {
+    grid-area: controls;
+    justify-self: end;
     display: flex;
-    flex: none;
     align-items: center;
     gap: 10px;
-    margin-inline-start: auto;
   }
 
   .speed {
@@ -851,7 +846,8 @@
     & span {
       margin-inline-end: 4px;
 
-      @media (width <= 560px) and (orientation: portrait) {
+      @media (width <= 800px) and (orientation: landscape),
+        (width <= 560px) and (orientation: portrait) {
         display: none;
       }
     }
