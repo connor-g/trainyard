@@ -38,37 +38,64 @@
   :root {
     color-scheme: light dark;
 
-    /* Surfaces */
-    --paper: light-dark(#f7f4eb, #171d18);
-    --panel: light-dark(#fffdf7, #212922);
-    --surface: light-dark(#f8f6ee, #29322a);
-    --surface-sunken: light-dark(#efede2, #1a201b);
-    --surface-raised: light-dark(#fffdf7, #39443a);
-    --line: light-dark(#e2dfd1, #374036);
-    --line-strong: light-dark(#b9b8aa, #5b6457);
+    /*
+     * Colours are Apple's iOS system colours (Human Interface Guidelines), light then dark.
+     * Text uses the "Increase Contrast" variants so it stays readable at small sizes.
+     */
+
+    /* Surfaces: the grouped-background family suits the sidebar and card layout. */
+    --paper: light-dark(#f2f2f7, #000); /* systemGroupedBackground */
+    --panel: light-dark(#fff, #1c1c1e); /* secondarySystemGroupedBackground */
+    --surface: light-dark(#f2f2f7, #2c2c2e); /* tertiarySystemGroupedBackground */
+    --surface-sunken: light-dark(
+      rgb(118 118 128 / 12%),
+      rgb(118 118 128 / 24%)
+    ); /* tertiarySystemFill */
+    --surface-raised: light-dark(#fff, #636366); /* systemGray2 dark */
+    --line: light-dark(rgb(60 60 67 / 29%), rgb(84 84 88 / 60%)); /* separator */
+    --line-strong: light-dark(#c6c6c8, #38383a); /* opaqueSeparator */
 
     /* Text */
-    --ink: light-dark(#28372a, #e9ebe0);
-    --muted: light-dark(#596255, #a9b2a3);
-    --green: light-dark(#31583d, #a9cf9c);
+    --ink: light-dark(#000, #fff); /* label */
+    --muted: light-dark(rgb(60 60 67 / 60%), rgb(235 235 245 / 60%)); /* secondaryLabel */
 
-    /* Accents and states */
-    --focus: light-dark(#ad5723, #f0a066);
-    --selected-fill: light-dark(#f7ead1, #4a3b22);
-    --selected-border: light-dark(#b6813d, #d6a05a);
-    --positive-fill: light-dark(#eaf0df, #2d3d2c);
-    --positive-border: light-dark(#c7d5bb, #4b6145);
-    --danger-fill: light-dark(#fae6d7, #45291f);
-    --danger-fill-strong: light-dark(#edc2a7, #5c3324);
-    --danger-border: light-dark(#ac6647, #d48e70);
-    --danger-border-strong: light-dark(#9b5033, #edab91);
-    --danger-ink: light-dark(#7d3e29, #f0b49a);
-    --danger-ink-strong: light-dark(#66311f, #f8c9b2);
-    --dashed: light-dark(#ded9cc, #6c7266);
-    --dashed-fill: light-dark(#faf8f0, #29322a);
-    --dashed-ink: light-dark(#817969, #b8b29e);
+    /* System hues */
+    --system-green: light-dark(#34c759, #30d158);
+    --system-blue: light-dark(#007aff, #0a84ff);
+    --system-red: light-dark(#ff3b30, #ff453a);
+    --system-orange: light-dark(#ff9500, #ff9f0a);
+    --system-yellow: light-dark(#fc0, #ffd60a);
+    --system-gray: #8e8e93;
+    --system-gray3: light-dark(#c7c7cc, #48484a);
 
-    /* Yard */
+    /* Accessible (high-contrast) variants, for text on light or dark surfaces */
+    --accessible-green: light-dark(#248a3d, #30db5b);
+    --accessible-blue: light-dark(#0040dd, #409cff);
+    --accessible-red: light-dark(#d70015, #ff6961);
+    --accessible-orange: light-dark(#c93400, #ffb340);
+    --accessible-yellow: light-dark(#b25000, #ffd426);
+
+    /* The app tint stays green; text in the tint uses the accessible variant. */
+    --tint: var(--system-green);
+    --green: var(--accessible-green);
+
+    /* Accents and states. Focus is blue so it stands out against the green board. */
+    --focus: var(--system-blue);
+    --selected-fill: color-mix(in srgb, var(--tint) 16%, transparent);
+    --selected-border: var(--tint);
+    --positive-fill: color-mix(in srgb, var(--tint) 12%, transparent);
+    --positive-border: color-mix(in srgb, var(--tint) 40%, transparent);
+    --danger-fill: color-mix(in srgb, var(--system-red) 10%, transparent);
+    --danger-fill-strong: color-mix(in srgb, var(--system-red) 22%, transparent);
+    --danger-border: var(--system-red);
+    --danger-border-strong: var(--accessible-red);
+    --danger-ink: var(--accessible-red);
+    --danger-ink-strong: var(--accessible-red);
+    --dashed: var(--system-gray3);
+    --dashed-fill: var(--surface-sunken);
+    --dashed-ink: var(--system-gray);
+
+    /* Yard: the board is artwork, not interface chrome, so it keeps its own palette. */
     --frame: light-dark(#e9edda, #263123);
     --frame-border: light-dark(#d5dec2, #3c4b37);
     --board: #cedcaa;
@@ -76,22 +103,143 @@
     --coordinate: light-dark(#526748, #a7bd96);
 
     /* Overlays: one tint, mixed to the strength each use needs */
-    --shade: light-dark(#203823, #000);
-    --toast: light-dark(#283d2c, #e9ebe0);
-    --toast-ink: light-dark(#fff, #1d241e);
+    --shade: #000;
+    --toast: light-dark(#1c1c1e, #f2f2f7);
+    --toast-ink: light-dark(#fff, #000);
 
-    /* Type */
+    /* Type: New York (Apple's system serif) via `ui-serif`, on the HIG text-style scale. */
     --sans:
       system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
       sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
-    --serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+    --serif: ui-serif, "New York", Georgia, Cambria, "Times New Roman", Times, serif;
 
-    /* Shape and sizing */
-    --tap: 44px;
-    --radius-panel: 17px;
-    --radius-card: 12px;
-    --radius-control: 10px;
-    --radius-small: 8px;
+    /* Sizes are in rem (1rem = 16px) so the whole interface scales with the root font size. */
+    --text-title1: 1.75rem; /* 28px */
+    --text-title2: 1.375rem; /* 22px */
+    --text-title3: 1.25rem; /* 20px */
+    --text-headline: 1.0625rem; /* 17px, semibold */
+    --text-body: 1.0625rem; /* 17px */
+    --text-callout: 1rem; /* 16px */
+    --text-subhead: 0.9375rem; /* 15px */
+    --text-footnote: 0.8125rem; /* 13px */
+    --text-caption: 0.75rem; /* 12px */
+    --text-caption2: 0.6875rem; /* 11px, the HIG minimum */
+    --leading-title1: calc(var(--spacing) * 8); /* 32px */
+    --leading-title2: calc(var(--spacing) * 7); /* 28px */
+    --regular: 400;
+    --semibold: 600;
+
+    /*
+     * One base unit, as in Tailwind: every step is a multiple of 4px (0.25rem), and the token
+     * number is the multiple. Margins, gaps and sizes use even steps (the 8px grid); padding may
+     * also use odd steps.
+     */
+    --spacing: 0.25rem;
+
+    /* Spacing scale, for padding, margins, gaps and insets */
+    --space-0: 0;
+    --space-1: calc(var(--spacing) * 1); /* 4px, padding only */
+    --space-2: calc(var(--spacing) * 2); /* 8px */
+    --space-3: calc(var(--spacing) * 3); /* 12px, padding only */
+    --space-4: calc(var(--spacing) * 4); /* 16px */
+    --space-6: calc(var(--spacing) * 6); /* 24px */
+
+    /* Sizing scale */
+    --size-4: calc(var(--spacing) * 4); /* 16px */
+    --size-6: calc(var(--spacing) * 6); /* 24px */
+    --size-8: calc(var(--spacing) * 8); /* 32px */
+    --size-10: calc(var(--spacing) * 10); /* 40px */
+    --size-12: calc(var(--spacing) * 12); /* 48px */
+    --size-14: calc(var(--spacing) * 14); /* 56px */
+    --size-16: calc(var(--spacing) * 16); /* 64px */
+    --size-18: calc(var(--spacing) * 18); /* 72px */
+    --size-20: calc(var(--spacing) * 20); /* 80px */
+    --size-24: calc(var(--spacing) * 24); /* 96px */
+    --size-34: calc(var(--spacing) * 34); /* 136px */
+
+    /* Layout sizes */
+    --size-sidebar: calc(var(--spacing) * 80); /* 320px */
+    --size-sidebar-compact: calc(var(--spacing) * 68); /* 272px */
+    --size-sidebar-min: calc(var(--spacing) * 50); /* 200px */
+    --size-palette-min: calc(var(--spacing) * 84); /* 336px */
+    --size-title-max: calc(var(--spacing) * 108); /* 432px */
+    --size-dialog: calc(var(--spacing) * 134); /* 536px */
+    --size-dialog-wide: calc(var(--spacing) * 156); /* 624px */
+
+    /* Touch targets: above the HIG 44pt minimum */
+    --tap: var(--size-12);
+
+    /*
+     * Radii nest concentrically: an inner shape's radius is its container's radius minus the
+     * container's border and padding. Each level is derived from the one inside it with calc(),
+     * so the rule holds by construction. Containers use the matching padding token and a
+     * hairline border.
+     */
+    --inset-padding: var(--space-1); /* between a card and the shape inside it */
+    --panel-padding: var(--space-2); /* between a panel and the cards inside it */
+    --radius-inset: var(--space-1); /* 4px: shapes inside a card */
+    --radius-card: calc(
+      var(--radius-inset) + var(--inset-padding) + var(--hairline)
+    ); /* 9px: cards */
+    --radius-panel: calc(
+      var(--radius-card) + var(--panel-padding) + var(--hairline)
+    ); /* 18px: panels */
+
+    /* Lines. Hairlines stay a true 1px at any root font size. */
+    --hairline: 1px;
+    --hairline-thick: calc(var(--hairline) * 2);
+    --focus-ring-width: calc(var(--hairline) * 3);
+    --focus-ring-offset: calc(var(--hairline) * 2);
+    --focus-ring: var(--focus-ring-width) solid var(--focus);
+
+    /* Colour-mix strengths, for tinting a hue into fills, borders and overlays */
+    --mix-faint: 7%;
+    --mix-fill: 14%;
+    --mix-edge: 22%;
+    --mix-border: 45%;
+    --mix-scrim: 40%;
+    --mix-ring: 25%;
+    --mix-material: 82%;
+    --mix-shadow: 23%;
+    --mix-shadow-deep: 28%;
+
+    /* Elevation */
+    --shadow-segment: 0 var(--hairline) var(--hairline-thick)
+      color-mix(in oklab, var(--shade) var(--mix-faint), transparent);
+    --shadow-lifted: 0 var(--space-1) var(--space-4)
+      color-mix(in oklab, var(--shade) var(--mix-shadow), transparent);
+    --shadow-modal: 0 var(--space-4) calc(var(--spacing) * 18)
+      color-mix(in oklab, var(--shade) var(--mix-shadow-deep), transparent);
+    --scrim: color-mix(in oklab, var(--shade) var(--mix-scrim), transparent);
+
+    /* Materials: the translucent, blurred surfaces HIG uses for transient overlays */
+    --material-blur: calc(var(--spacing) * 5); /* 20px */
+    --material-saturation: 180%;
+    --material-filter: blur(var(--material-blur)) saturate(var(--material-saturation));
+
+    /* Fluid type: viewport-relative sizes, clamped between text styles */
+    --fluid-brand: 4vw;
+    --fluid-piece: 1.2vw;
+    --fluid-track: 1.55vw;
+
+    /* Line heights for single-line and compact labels */
+    --leading-none: 1;
+    --leading-tight: 1.1;
+    --leading-snug: 1.3;
+
+    /* Interaction */
+    --opacity-disabled: 0.42;
+    --hover-brightness: 0.97;
+    --enter-scale: 0.96;
+    --duration-enter: 180ms;
+
+    /* Aspect ratios of the canvases drawn by drawing.ts */
+    --ratio-piece: 176 / 120;
+    --ratio-yard-thumbnail: 12 / 7;
+
+    /* Stacking */
+    --layer-toast: 2;
+    --layer-drag: 10;
 
     /* Safe areas (the app runs full-screen from the iPad home screen) */
     --safe-top: env(safe-area-inset-top, 0px);
@@ -106,8 +254,8 @@
 /* ------------------------------------------------------------------------------------------ */
 @layer base {
   :root {
-    font-family: var(--sans);
-    font-weight: 500;
+    font-family: var(--serif);
+    font-weight: var(--regular);
     color: var(--ink);
     background: var(--paper);
     accent-color: var(--green);
@@ -138,35 +286,35 @@
     touch-action: none;
 
     &:focus-visible {
-      outline: 3px solid var(--focus);
-      outline-offset: 2px;
+      outline: var(--focus-ring);
+      outline-offset: var(--focus-ring-offset);
     }
 
     &:disabled {
-      opacity: 0.42;
+      opacity: var(--opacity-disabled);
       cursor: default;
     }
 
     @media (hover: hover) {
       &:not(:disabled):hover {
-        filter: brightness(0.97);
+        filter: brightness(var(--hover-brightness));
       }
     }
   }
 
   canvas:focus-visible {
-    outline: 3px solid var(--focus);
-    outline-offset: 2px;
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
   }
 
   h3 {
-    font-size: 14px;
-    font-weight: 800;
+    font-size: var(--text-subhead);
+    font-weight: var(--semibold);
   }
 
   .icon {
-    inline-size: 19px;
-    block-size: 19px;
+    inline-size: var(--size-6);
+    block-size: var(--size-6);
     flex: none;
   }
 }
@@ -174,8 +322,8 @@
 /* ------------------------------------------------------------------------------------------ */
 @layer layout {
   .topbar {
-    --topbar-height: 74px;
-    --topbar-inline: 26px;
+    --topbar-height: var(--size-18);
+    --topbar-inline: var(--space-6);
 
     flex: none;
     block-size: calc(var(--topbar-height) + var(--safe-top));
@@ -185,127 +333,126 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 14px;
-    border-block-end: 1px solid var(--line);
+    gap: var(--space-4);
+    border-block-end: var(--hairline) solid var(--line);
     background: var(--panel);
 
     @media (width <= 560px) and (orientation: portrait) {
-      --topbar-height: 58px;
-      --topbar-inline: 10px;
-      gap: 8px;
+      --topbar-height: var(--size-14);
+      --topbar-inline: var(--space-2);
+      gap: var(--space-2);
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      --topbar-height: 54px;
+      --topbar-height: var(--size-14);
     }
   }
 
   .studio {
-    --gutter-block: 18px;
-    --gutter-inline: 20px;
+    --sidebar-fluid: 35vw; /* sidebar share of the width on short landscape screens */
+    --palette-share: 52%; /* portrait: the track palette's minimum share of the height */
+    --palette-weight: 0.8fr;
+    --workbench-min: calc(var(--spacing) * 180); /* portrait: 720px */
+    --workbench-share: 70%;
+    --gutter-block: var(--space-4);
+    --gutter-inline: var(--space-6);
 
     display: grid;
     flex: 1;
-    grid-template-columns: 318px minmax(0, 1fr);
+    grid-template-columns: var(--size-sidebar) minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
-    gap: 18px;
+    gap: var(--space-4);
     padding-block: var(--gutter-block) max(var(--gutter-block), var(--safe-bottom));
     padding-inline: max(var(--gutter-inline), var(--safe-left))
       max(var(--gutter-inline), var(--safe-right));
     min-block-size: 0;
 
     @media (width <= 1100px) {
-      --gutter-inline: 13px;
-      grid-template-columns: 275px minmax(0, 1fr);
-      gap: 13px;
+      --gutter-inline: var(--space-3);
+      grid-template-columns: var(--size-sidebar-compact) minmax(0, 1fr);
+      gap: var(--space-4);
     }
 
     @media (width <= 1100px) and (orientation: portrait) {
-      --gutter-block: 12px;
-      --gutter-inline: 12px;
+      --gutter-block: var(--space-3);
+      --gutter-inline: var(--space-3);
       grid-template-columns: minmax(0, 1fr);
-      grid-template-rows: minmax(0, 1fr) minmax(min(720px, 70%), 1fr);
-      gap: 10px;
+      grid-template-rows: minmax(0, 1fr) minmax(
+          min(var(--workbench-min), var(--workbench-share)),
+          1fr
+        );
+      gap: var(--space-2);
 
       /* The track palette needs more room than the car palette. */
       &:has(.palette[data-kind="track"]) {
-        grid-template-rows: minmax(0, 1fr) minmax(min(340px, 52%), 0.8fr);
+        grid-template-rows: minmax(0, 1fr) minmax(
+            min(var(--size-palette-min), var(--palette-share)),
+            var(--palette-weight)
+          );
       }
     }
 
     @media (width <= 560px) and (orientation: portrait) {
-      --gutter-block: 7px;
-      --gutter-inline: 7px;
-      gap: 7px;
+      --gutter-block: var(--space-2);
+      --gutter-inline: var(--space-2);
+      gap: var(--space-2);
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      --gutter-block: 7px;
-      grid-template-columns: clamp(200px, 35vw, 318px) minmax(0, 1fr);
-      gap: 8px;
+      --gutter-block: var(--space-2);
+      grid-template-columns: clamp(
+          var(--size-sidebar-min),
+          var(--sidebar-fluid),
+          var(--size-sidebar)
+        ) minmax(0, 1fr);
+      gap: var(--space-2);
     }
   }
 
   .workbench,
   .yard {
     background: var(--panel);
-    border: 1px solid var(--line);
+    border: var(--hairline) solid var(--line);
     border-radius: var(--radius-panel);
     min-inline-size: 0;
     min-block-size: 0;
   }
 
   .workbench {
-    padding: 12px;
+    padding: var(--panel-padding);
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: var(--space-4);
     overflow: clip;
 
     @media (width <= 1100px) and (orientation: portrait) {
       grid-row: 2;
-      gap: 8px;
-    }
-
-    @media (width <= 560px) and (orientation: portrait) {
-      padding: 8px;
+      gap: var(--space-2);
     }
 
     @media (height <= 770px) and (orientation: landscape) {
-      gap: 8px;
-      padding: 9px;
+      gap: var(--space-2);
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      padding: 7px;
-      gap: 5px;
+      gap: var(--space-2);
     }
   }
 
   .yard {
     display: flex;
     flex-direction: column;
-    padding: 17px;
-    gap: 13px;
-
-    @media (width <= 1100px) {
-      padding: 13px;
-    }
+    padding: var(--panel-padding);
+    gap: var(--space-4);
 
     @media (width <= 1100px) and (orientation: portrait) {
       flex: 1;
       min-block-size: 0;
-      padding: 12px;
-      gap: 8px;
-    }
-
-    @media (width <= 560px) and (orientation: portrait) {
-      padding: 8px;
+      gap: var(--space-2);
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      padding: 7px;
-      gap: 5px;
+      gap: var(--space-2);
     }
   }
 }
@@ -316,12 +463,11 @@
   .brand {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--space-4);
     min-inline-size: 0;
 
     & h1 {
-      font: 400 31px/1 var(--serif);
-      letter-spacing: -0.5px;
+      font: var(--regular) var(--text-title1) / var(--leading-title1) var(--serif);
     }
 
     & img {
@@ -330,15 +476,15 @@
     }
 
     @media (width <= 560px) and (orientation: portrait) {
-      gap: 6px;
+      gap: var(--space-2);
 
       & h1 {
-        font-size: clamp(14px, 4vw, 21px);
+        font-size: clamp(var(--text-subhead), var(--fluid-brand), var(--text-title2));
       }
 
       & img {
-        inline-size: 30px;
-        block-size: 30px;
+        inline-size: var(--size-8);
+        block-size: var(--size-8);
       }
     }
   }
@@ -346,16 +492,16 @@
   .top-actions {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: var(--space-4);
     min-inline-size: 0;
 
     @media (width <= 560px) and (orientation: portrait) {
-      gap: 4px;
+      gap: var(--space-2);
 
       & .button {
-        padding-inline: 8px;
+        padding-inline: var(--space-2);
         min-inline-size: 0;
-        font-size: 12px;
+        font-size: var(--text-caption);
       }
     }
   }
@@ -363,25 +509,28 @@
   .layout-toolbar {
     display: flex;
     align-items: center;
-    gap: 9px;
+    gap: var(--space-2);
     min-inline-size: 0;
 
     @media (width <= 560px) and (orientation: portrait) {
-      gap: 5px;
+      gap: var(--space-2);
     }
   }
 
   #layout-name {
-    font: 400 22px/1.1 var(--serif);
-    max-inline-size: min(32vw, 430px);
+    --name-fluid: 32vw;
+    --name-fluid-phone: 23vw;
+
+    font: var(--regular) var(--text-title2) / var(--leading-title2) var(--serif);
+    max-inline-size: min(var(--name-fluid), var(--size-title-max));
     min-inline-size: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 
     @media (width <= 560px) and (orientation: portrait) {
-      max-inline-size: 23vw;
-      font-size: 14px;
+      max-inline-size: var(--name-fluid-phone);
+      font-size: var(--text-subhead);
     }
   }
 
@@ -389,14 +538,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: var(--space-2);
     min-block-size: var(--tap);
-    padding: 0 15px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-control);
+    padding: 0 var(--space-4);
+    border: var(--hairline) solid var(--line);
+    border-radius: var(--radius-card);
     background: var(--panel);
-    font-size: 14px;
-    font-weight: 750;
+    font-size: var(--text-subhead);
+    font-weight: var(--semibold);
     white-space: nowrap;
   }
 
@@ -405,7 +554,7 @@
     flex: none;
 
     @media (width <= 560px) and (orientation: portrait) {
-      inline-size: 38px;
+      inline-size: var(--size-10);
       padding: 0;
 
       & span {
@@ -420,8 +569,8 @@
     padding: 0;
 
     & .icon {
-      inline-size: 22px;
-      block-size: 22px;
+      inline-size: var(--size-6);
+      block-size: var(--size-6);
     }
 
     &[aria-pressed="false"] {
@@ -432,11 +581,12 @@
   /* Workbench ----------------------------------------------------------------------------- */
   .tabs {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4px;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 0;
     flex: none;
-    padding: 4px;
-    border: 1px solid var(--line);
+    padding: var(--inset-padding);
+    border: var(--hairline) solid var(--line);
     border-radius: var(--radius-card);
     background: var(--surface-sunken);
   }
@@ -445,55 +595,57 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    min-block-size: 54px;
-    padding: 0 5px;
-    border: 1px solid transparent;
-    border-radius: 9px;
+    gap: var(--space-2);
+    min-block-size: var(--size-14);
+    padding: 0 var(--space-1);
+    border: var(--hairline) solid transparent;
+    border-radius: var(--radius-inset);
     background: transparent;
-    font-size: 16px;
-    font-weight: 800;
+    font-size: var(--text-headline);
+    font-weight: var(--semibold);
     white-space: nowrap;
 
     & .icon {
-      inline-size: 22px;
-      block-size: 22px;
+      inline-size: var(--size-6);
+      block-size: var(--size-6);
     }
 
     &[aria-pressed="true"] {
       background: var(--surface-raised);
       border-color: var(--line);
-      box-shadow: 0 1px 2px color-mix(in oklab, var(--shade) 7%, transparent);
+      box-shadow: var(--shadow-segment);
     }
 
     @media (width <= 560px) and (orientation: portrait) {
-      min-block-size: 42px;
+      min-block-size: var(--size-12);
     }
 
     @media (height <= 770px) and (orientation: landscape) {
-      min-block-size: 46px;
+      min-block-size: var(--size-12);
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      min-block-size: 35px;
-      font-size: 12px;
+      min-block-size: var(--size-10);
+      font-size: var(--text-caption);
     }
   }
 
   .palette {
+    --columns: 3;
+
     display: grid;
     flex: 1;
     min-block-size: 0;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
     grid-auto-rows: minmax(0, 1fr);
-    gap: 8px;
+    gap: var(--space-2);
 
     @media (width <= 1100px) and (orientation: portrait) {
-      gap: 6px;
+      gap: var(--space-2);
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      gap: 4px;
+      gap: var(--space-2);
     }
   }
 
@@ -502,13 +654,13 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    padding: 5px 3px 9px;
-    border: 1px solid var(--line);
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-1) var(--space-2);
+    border: var(--hairline) solid var(--line);
     border-radius: var(--radius-card);
     background: var(--surface);
-    font-size: clamp(12px, 1.2vw, 16px);
-    font-weight: 800;
+    font-size: clamp(var(--text-caption), var(--fluid-piece), var(--text-callout));
+    font-weight: var(--semibold);
     text-align: center;
     cursor: grab;
     touch-action: none;
@@ -523,58 +675,58 @@
     }
 
     & canvas {
-      inline-size: min(100%, 138px);
+      inline-size: min(100%, var(--size-34));
       block-size: auto;
       min-block-size: 0;
-      aspect-ratio: 176 / 120;
+      aspect-ratio: var(--ratio-piece);
       object-fit: contain;
       pointer-events: none;
     }
 
     @media (width <= 1100px) and (orientation: portrait) {
-      font-size: 14px;
+      font-size: var(--text-subhead);
 
       & canvas {
-        inline-size: min(100%, 94px);
+        inline-size: min(100%, var(--size-24));
       }
     }
 
     @media (width <= 560px) and (orientation: portrait) {
-      font-size: 11px;
+      font-size: var(--text-caption2);
 
       & canvas {
-        max-block-size: 36px;
+        max-block-size: var(--size-10);
       }
     }
 
     @media (height <= 770px) and (orientation: landscape) {
       & canvas {
-        inline-size: min(100%, 83px);
+        inline-size: min(100%, var(--size-20));
       }
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      padding: 2px;
+      padding: var(--space-1);
       gap: 0;
-      font-size: 10px;
-      line-height: 1;
+      font-size: var(--text-caption2);
+      line-height: var(--leading-none);
     }
   }
 
   /* Track pieces fill their cell instead of keeping the card's aspect ratio. */
   .palette[data-kind="track"] {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
+    --columns: 2;
+    gap: var(--space-2);
 
     & .piece {
       display: grid;
       grid-template-rows: minmax(0, 1fr) auto;
       align-items: stretch;
       justify-content: stretch;
-      padding: 3px 4px 5px;
-      gap: 2px;
-      font-size: clamp(16px, 1.55vw, 20px);
-      line-height: 1.1;
+      padding: var(--space-1) var(--space-1) var(--space-1);
+      gap: var(--space-2);
+      font-size: clamp(var(--text-callout), var(--fluid-track), var(--text-title3));
+      line-height: var(--leading-tight);
 
       & canvas {
         inline-size: 100%;
@@ -585,14 +737,15 @@
 
       @media (width <= 560px) and (orientation: portrait),
         (height <= 540px) and (orientation: landscape) {
-        padding-block: 1px 2px;
-        font-size: 12px;
+        padding-block: 0 var(--space-1);
+        gap: 0;
+        font-size: var(--text-caption);
       }
     }
   }
 
   .colors {
-    padding: 0 1px;
+    padding: 0 var(--hairline);
     flex: none;
   }
 
@@ -600,31 +753,34 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin: 0 3px 3px;
+    margin: 0 0 var(--space-2);
+    padding-inline: var(--space-1);
 
     & span {
       color: var(--muted);
-      font-size: 13px;
+      font-size: var(--text-footnote);
     }
   }
 
   .swatches {
+    --columns: 3;
+
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 3px;
+    grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
+    gap: var(--space-2);
   }
 
   .swatch {
-    --dot: 38px;
+    --dot: var(--size-10);
 
     display: grid;
     place-items: center;
     min-inline-size: 0;
     inline-size: 100%;
-    block-size: 48px;
-    padding: 3px;
-    border: 1px solid transparent;
-    border-radius: var(--radius-control);
+    block-size: var(--size-12);
+    padding: var(--space-1);
+    border: var(--hairline) solid transparent;
+    border-radius: var(--radius-card);
     background: none;
 
     & span {
@@ -633,24 +789,24 @@
       aspect-ratio: 1;
       border-radius: 50%;
       background: var(--swatch);
-      border: 1px solid color-mix(in oklab, var(--shade) 22%, transparent);
+      border: var(--hairline) solid color-mix(in oklab, var(--shade) var(--mix-edge), transparent);
     }
 
     &[aria-pressed="true"] span {
       box-shadow:
-        0 0 0 1px var(--panel),
-        0 0 0 4px var(--ink);
+        0 0 0 var(--hairline) var(--panel),
+        0 0 0 var(--space-1) var(--ink);
     }
 
     @media (width <= 560px) and (orientation: portrait) {
-      --dot: 31px;
-      block-size: 39px;
+      --dot: var(--size-8);
+      block-size: var(--size-10);
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      --dot: 24px;
-      block-size: 28px;
-      padding: 1px;
+      --dot: var(--size-6);
+      block-size: var(--size-8);
+      padding: var(--hairline);
     }
   }
 
@@ -662,24 +818,18 @@
     display: grid;
     place-items: center;
     overflow: hidden;
-    padding: 12px 12px 12px 8px;
-    border: 1px solid var(--frame-border);
+    padding: var(--inset-padding);
+    border: var(--hairline) solid var(--frame-border);
     border-radius: var(--radius-card);
     background: var(--frame);
-
-    @media (width <= 1100px) and (orientation: portrait) {
-      padding: 6px;
-    }
-
-    @media (height <= 540px) and (orientation: landscape) {
-      padding: 4px;
-    }
   }
 
   /* `resize()` in yard.ts reads the first grid track sizes as the coordinate gutters. */
   .map {
-    --row-labels: 21px;
-    --column-labels: 19px;
+    --cols: 17; /* defaults until yard.ts sets the real grid size */
+    --rows: 14;
+    --row-labels: var(--size-6);
+    --column-labels: var(--size-4);
 
     display: grid;
     grid-template-columns: var(--row-labels) minmax(0, 1fr);
@@ -688,27 +838,28 @@
     block-size: 100%;
 
     @media (width <= 560px) and (orientation: portrait) {
-      --row-labels: 15px;
-      --column-labels: 14px;
+      --row-labels: var(--size-4);
+      --column-labels: var(--size-4);
     }
   }
 
   .coordinates {
     color: var(--coordinate);
-    font-size: 10px;
-    font-weight: 750;
+    font-size: var(--text-caption2);
+    font-weight: var(--semibold);
     font-variant-numeric: tabular-nums;
+    line-height: var(--leading-none);
     pointer-events: none;
 
     @media (width <= 560px) and (orientation: portrait) {
-      font-size: 8px;
+      font-size: var(--text-caption2);
     }
   }
 
   .columns {
     grid-column: 2;
     display: grid;
-    grid-template-columns: repeat(var(--cols, 17), 1fr);
+    grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
     align-items: start;
     text-align: center;
   }
@@ -716,7 +867,7 @@
   .rows {
     grid-row: 2;
     display: grid;
-    grid-template-rows: repeat(var(--rows, 14), 1fr);
+    grid-template-rows: repeat(var(--rows), minmax(0, 1fr));
     align-items: center;
     text-align: start;
   }
@@ -725,9 +876,9 @@
     grid-area: 2 / 2;
     position: relative;
     overflow: hidden;
-    border-radius: 7px;
+    border-radius: var(--radius-inset);
     background: var(--board);
-    box-shadow: 0 0 0 1px var(--board-edge);
+    box-shadow: 0 0 0 var(--hairline) var(--board-edge);
 
     & canvas {
       position: absolute;
@@ -752,7 +903,7 @@
     -webkit-touch-callout: none;
 
     &:focus-visible {
-      outline-offset: -3px;
+      outline-offset: calc(var(--focus-ring-width) * -1);
     }
   }
 
@@ -761,7 +912,7 @@
     grid-template-columns: minmax(0, 1fr) auto minmax(max-content, 1fr);
     grid-template-areas: "hint remove controls";
     align-items: center;
-    gap: 10px;
+    gap: var(--space-2);
 
     @media (width <= 800px) and (orientation: landscape),
       (width <= 560px) and (orientation: portrait) {
@@ -769,7 +920,6 @@
       grid-template-areas:
         "hint remove"
         "controls controls";
-      gap: 5px 8px;
     }
   }
 
@@ -778,15 +928,15 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 7px;
+    gap: var(--space-2);
     min-block-size: var(--tap);
-    padding: 4px 12px;
-    border: 2px dashed var(--dashed);
-    border-radius: var(--radius-control);
+    padding: var(--space-1) var(--space-3);
+    border: var(--hairline-thick) dashed var(--dashed);
+    border-radius: var(--radius-card);
     background: var(--dashed-fill);
     color: var(--dashed-ink);
-    font-size: 13px;
-    font-weight: 750;
+    font-size: var(--text-footnote);
+    font-weight: var(--semibold);
     text-align: center;
     user-select: none;
 
@@ -801,13 +951,14 @@
       border-style: solid;
       border-color: var(--danger-border-strong);
       color: var(--danger-ink-strong);
-      box-shadow: 0 0 0 2px color-mix(in oklab, var(--danger-border) 25%, transparent);
+      box-shadow: 0 0 0 var(--hairline-thick)
+        color-mix(in oklab, var(--danger-border) var(--mix-ring), transparent);
     }
 
     @media (width <= 800px) and (orientation: landscape),
       (width <= 560px) and (orientation: portrait) {
-      padding-inline: 7px;
-      font-size: 12px;
+      padding-inline: var(--space-2);
+      font-size: var(--text-caption);
     }
   }
 
@@ -815,14 +966,14 @@
     grid-area: hint;
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: var(--space-2);
     color: var(--muted);
-    font-size: 12px;
-    line-height: 1.3;
+    font-size: var(--text-caption);
+    line-height: var(--leading-snug);
 
     & .icon {
-      inline-size: 16px;
-      block-size: 16px;
+      inline-size: var(--size-4);
+      block-size: var(--size-4);
     }
   }
 
@@ -831,20 +982,20 @@
     justify-self: end;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--space-2);
   }
 
   .speed {
     display: flex;
     flex: none;
     align-items: center;
-    gap: 4px;
+    gap: var(--space-2);
     white-space: nowrap;
-    font-size: 13px;
+    font-size: var(--text-footnote);
     color: var(--muted);
 
     & span {
-      margin-inline-end: 4px;
+      margin-inline-end: var(--space-2);
 
       @media (width <= 800px) and (orientation: landscape),
         (width <= 560px) and (orientation: portrait) {
@@ -857,11 +1008,11 @@
       place-items: center;
       min-inline-size: var(--tap);
       block-size: var(--tap);
-      border: 1px solid var(--speed-border);
-      border-radius: var(--radius-small);
+      border: var(--hairline) solid var(--speed-border);
+      border-radius: var(--radius-card);
       background: var(--speed-fill);
       color: var(--speed-ink);
-      font-weight: 800;
+      font-weight: var(--semibold);
 
       &[aria-pressed="true"] {
         background: var(--speed-ink);
@@ -870,42 +1021,45 @@
       }
     }
 
-    /* Each speed has its own hue, from warm (stopped) to cool (fast). */
+    /* Each speed has its own system hue, from warm (stopped) to cool (fast). */
+    & button {
+      --speed-fill: color-mix(in srgb, var(--speed-hue) var(--mix-fill), transparent);
+      --speed-border: color-mix(in srgb, var(--speed-hue) var(--mix-border), transparent);
+    }
     & [data-speed="0"] {
-      --speed-fill: light-dark(#fbe6d5, #4a2c1a);
-      --speed-border: light-dark(#e6b391, #7a4a2c);
-      --speed-ink: light-dark(#79401d, #f6c09a);
+      --speed-hue: var(--system-orange);
+      --speed-ink: var(--accessible-orange);
     }
     & [data-speed="0.5"] {
-      --speed-fill: light-dark(#faf0ca, #423a17);
-      --speed-border: light-dark(#dfc775, #6f6125);
-      --speed-ink: light-dark(#655013, #f0dc8c);
+      --speed-hue: var(--system-yellow);
+      --speed-ink: var(--accessible-yellow);
     }
     & [data-speed="1"] {
-      --speed-fill: light-dark(#e6efd9, #2a3b24);
-      --speed-border: light-dark(#b7cba5, #4b6340);
-      --speed-ink: light-dark(#34552a, #bfdcae);
+      --speed-hue: var(--system-green);
+      --speed-ink: var(--accessible-green);
     }
     & [data-speed="2"] {
-      --speed-fill: light-dark(#e1eef8, #1f3446);
-      --speed-border: light-dark(#adcce1, #3d6382);
-      --speed-ink: light-dark(#264f6d, #a9d0ef);
+      --speed-hue: var(--system-blue);
+      --speed-ink: var(--accessible-blue);
     }
   }
 
   .toast {
     position: absolute;
-    inset-block-end: 18px;
+    inset-block-end: var(--space-4);
     inset-inline-start: 50%;
     translate: -50% 0;
-    z-index: 2;
+    z-index: var(--layer-toast);
     inline-size: max-content;
-    max-inline-size: calc(100% - 28px);
-    padding: 9px 13px;
-    border-radius: 9px;
-    background: var(--toast);
+    max-inline-size: calc(100% - var(--space-6));
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-card);
+    /* A translucent material, as HIG uses for transient overlays. */
+    background: color-mix(in srgb, var(--toast) var(--mix-material), transparent);
+    -webkit-backdrop-filter: var(--material-filter);
+    backdrop-filter: var(--material-filter);
     color: var(--toast-ink);
-    font-size: 13px;
+    font-size: var(--text-footnote);
     text-align: center;
     text-wrap: balance;
     pointer-events: none;
@@ -914,40 +1068,42 @@
   .drag-ghost {
     position: fixed;
     inset: 0 auto auto 0;
-    z-index: 10;
-    inline-size: 72px;
-    block-size: 72px;
+    z-index: var(--layer-drag);
+    inline-size: var(--size-18);
+    block-size: var(--size-18);
     display: grid;
     place-items: center;
-    border: 1px solid var(--selected-border);
+    border: var(--hairline) solid var(--selected-border);
     border-radius: var(--radius-card);
     background: var(--selected-fill);
-    box-shadow: 0 5px 15px color-mix(in oklab, var(--shade) 23%, transparent);
+    box-shadow: var(--shadow-lifted);
     pointer-events: none;
 
     & canvas {
-      inline-size: 68px;
+      inline-size: var(--size-16);
       block-size: auto;
     }
   }
 
   /* Dialogs ------------------------------------------------------------------------------- */
   dialog {
-    inline-size: min(535px, calc(100% - 26px));
-    padding: 21px;
-    border: 1px solid var(--line);
-    border-radius: 16px;
+    --dialog-padding: var(--space-6);
+
+    inline-size: min(var(--size-dialog), calc(100% - var(--space-6)));
+    padding: var(--dialog-padding);
+    border: var(--hairline) solid var(--line);
+    border-radius: calc(var(--radius-card) + var(--dialog-padding) + var(--hairline));
     background: var(--panel);
     color: var(--ink);
-    box-shadow: 0 15px 70px color-mix(in oklab, var(--shade) 28%, transparent);
+    box-shadow: var(--shadow-modal);
 
     &::backdrop {
-      background: color-mix(in oklab, var(--shade) 40%, transparent);
+      background: var(--scrim);
     }
   }
 
   #layout-library {
-    inline-size: min(620px, calc(100% - 26px));
+    inline-size: min(var(--size-dialog-wide), calc(100% - var(--space-6)));
   }
 
   .dialog-header {
@@ -956,7 +1112,7 @@
     align-items: center;
 
     & h2 {
-      font: 400 29px/1 var(--serif);
+      font: var(--regular) var(--text-title1) / var(--leading-title1) var(--serif);
     }
   }
 
@@ -966,77 +1122,79 @@
     inline-size: var(--tap);
     block-size: var(--tap);
     border: 0;
-    border-radius: 9px;
+    border-radius: var(--radius-card);
     background: var(--surface-sunken);
   }
 
   .layout-heading {
-    margin: 12px 0 7px;
+    margin: var(--space-4) 0 var(--space-2);
   }
 
   .background-options {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
-    gap: 6px;
+    grid-template-columns: repeat(auto-fit, minmax(var(--size-18), 1fr));
+    gap: var(--space-2);
   }
 
   .background-option {
     display: grid;
     justify-items: center;
-    gap: 5px;
-    padding: 5px;
+    gap: var(--space-2);
+    padding: var(--inset-padding);
     min-inline-size: 0;
-    border: 1px solid var(--line);
-    border-radius: 9px;
+    border: var(--hairline) solid var(--line);
+    border-radius: var(--radius-card);
     background: var(--surface);
-    font-size: 12px;
-    font-weight: 800;
+    font-size: var(--text-caption);
+    font-weight: var(--semibold);
 
     & canvas {
       inline-size: 100%;
       block-size: auto;
-      aspect-ratio: 12 / 7;
-      border-radius: 5px;
+      aspect-ratio: var(--ratio-yard-thumbnail);
+      border-radius: var(--radius-inset);
       pointer-events: none;
     }
 
     &[aria-pressed="true"] {
       background: var(--selected-fill);
       border-color: var(--selected-border);
-      box-shadow: inset 0 0 0 1px var(--selected-border);
+      box-shadow: inset 0 0 0 var(--hairline) var(--selected-border);
     }
   }
 
   /* `.layout-option` is the base; `.grid-option` and `.library-button` refine it below. */
   .layout-option {
     display: flex;
-    gap: 8px;
+    gap: var(--space-2);
     align-items: center;
     justify-content: center;
-    min-block-size: 56px;
-    padding: 4px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-control);
+    min-block-size: var(--size-14);
+    padding: var(--space-1);
+    border: var(--hairline) solid var(--line);
+    border-radius: var(--radius-card);
     background: var(--surface);
-    font-size: 13px;
-    font-weight: 750;
+    font-size: var(--text-footnote);
+    font-weight: var(--semibold);
   }
 
   .grid-options {
+    --columns: 4;
+
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 5px;
+    grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
+    gap: var(--space-2);
   }
 
   .grid-option {
     flex-direction: column;
-    gap: 2px;
-    min-block-size: 48px;
-    line-height: 1.1;
+    gap: var(--space-2);
+    min-block-size: var(--size-12);
+    line-height: var(--leading-tight);
     text-align: center;
 
     & span {
-      font-size: 11px;
+      font-size: var(--text-caption2);
       color: var(--muted);
     }
 
@@ -1049,17 +1207,19 @@
   .library-button {
     inline-size: 100%;
     min-block-size: var(--tap);
-    margin-block-start: 12px;
+    margin-block-start: var(--space-4);
     background: var(--positive-fill);
     border-color: var(--positive-border);
     color: var(--green);
   }
 
   .layout-actions {
+    --primary-weight: 1.3fr;
+
     display: grid;
-    grid-template-columns: 1.3fr 1fr;
-    gap: 8px;
-    margin-block-start: 12px;
+    grid-template-columns: var(--primary-weight) 1fr;
+    gap: var(--space-2);
+    margin-block-start: var(--space-4);
   }
 
   #layout-dialog {
@@ -1069,41 +1229,41 @@
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      padding: 12px;
+      --dialog-padding: var(--space-3);
 
       & .layout-heading {
-        margin: 8px 0 5px;
+        margin: var(--space-2) 0 var(--space-2);
       }
       & .layout-option {
-        min-block-size: 38px;
+        min-block-size: var(--size-10);
       }
       & .library-button {
-        margin-block-start: 7px;
+        margin-block-start: var(--space-2);
       }
       & .background-option canvas {
-        max-block-size: 34px;
+        max-block-size: var(--size-8);
         object-fit: cover;
       }
     }
   }
 
   .library-section {
-    margin-block-start: 14px;
+    margin-block-start: var(--space-4);
 
     & label {
       display: block;
-      margin-block-end: 5px;
-      font-size: 14px;
-      font-weight: 800;
+      margin-block-end: var(--space-2);
+      font-size: var(--text-subhead);
+      font-weight: var(--semibold);
     }
   }
 
   #layout-library {
     @media (height <= 540px) and (orientation: landscape) {
-      padding: 12px;
+      --dialog-padding: var(--space-3);
 
       & .library-section {
-        margin-block-start: 7px;
+        margin-block-start: var(--space-2);
       }
     }
   }
@@ -1111,19 +1271,19 @@
   .library-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 7px;
+    gap: var(--space-2);
 
     & input {
       inline-size: 100%;
       min-inline-size: 0;
-      min-block-size: 46px;
-      padding: 0 9px;
-      border: 1px solid var(--line-strong);
-      border-radius: 9px;
+      min-block-size: var(--size-12);
+      padding: 0 var(--space-2);
+      border: var(--hairline) solid var(--line-strong);
+      border-radius: var(--radius-card);
       background: var(--panel);
       color: var(--ink);
       caret-color: var(--focus);
-      font-size: 16px;
+      font-size: var(--text-body);
       touch-action: manipulation;
 
       &::placeholder {
@@ -1131,21 +1291,21 @@
       }
 
       &:focus-visible {
-        outline: 3px solid var(--focus);
-        outline-offset: 1px;
+        outline: var(--focus-ring);
+        outline-offset: var(--hairline);
       }
     }
 
     & .layout-option {
-      min-block-size: 46px;
-      padding-inline: 10px;
+      min-block-size: var(--size-12);
+      padding-inline: var(--space-2);
       white-space: nowrap;
     }
   }
 
   .library-note {
-    margin: 12px 0 0;
-    font-size: 13px;
+    margin: var(--space-4) 0 0;
+    font-size: var(--text-footnote);
     color: var(--muted);
 
     &:empty {
@@ -1154,36 +1314,40 @@
   }
 
   .saved-layouts {
+    --columns: 3;
+
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
-    margin-block-start: 8px;
+    grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
+    gap: var(--space-2);
+    margin-block-start: var(--space-2);
   }
 
   .saved-yard {
+    --thumbnail-fluid: 10dvh;
+
     display: grid;
     justify-items: stretch;
     align-content: start;
-    gap: 5px;
+    gap: var(--space-2);
     min-inline-size: 0;
-    padding: 5px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-control);
+    padding: var(--inset-padding);
+    border: var(--hairline) solid var(--line);
+    border-radius: var(--radius-card);
     background: var(--surface);
     text-align: start;
-    font-size: 13px;
-    font-weight: 800;
+    font-size: var(--text-footnote);
+    font-weight: var(--semibold);
 
     & canvas {
       display: block;
       inline-size: 100%;
-      aspect-ratio: 12 / 7;
+      aspect-ratio: var(--ratio-yard-thumbnail);
       object-fit: contain;
-      border-radius: 6px;
+      border-radius: var(--radius-inset);
       background: var(--frame);
 
       @media (height <= 540px) and (orientation: landscape) {
-        block-size: min(10dvh, 70px);
+        block-size: min(var(--thumbnail-fluid), var(--size-18));
       }
     }
 
@@ -1191,7 +1355,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      padding: 0 3px 3px;
+      padding: 0 var(--space-1) var(--space-1);
     }
   }
 
@@ -1199,14 +1363,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 12px;
-    margin-block-start: 8px;
-    font-size: 13px;
+    gap: var(--space-4);
+    margin-block-start: var(--space-2);
+    font-size: var(--text-footnote);
     color: var(--muted);
 
     & .layout-option {
-      min-block-size: 38px;
-      padding-inline: 10px;
+      min-block-size: var(--size-10);
+      padding-inline: var(--space-2);
     }
   }
 }
@@ -1215,8 +1379,8 @@
 @layer utilities {
   .sr-only {
     position: absolute;
-    inline-size: 1px;
-    block-size: 1px;
+    inline-size: var(--hairline);
+    block-size: var(--hairline);
     clip-path: inset(50%);
     overflow: hidden;
     white-space: nowrap;
@@ -1226,16 +1390,16 @@
   @media (prefers-reduced-motion: no-preference) {
     dialog[open] {
       transition:
-        opacity 180ms var(--ease-out),
-        scale 180ms var(--ease-out);
+        opacity var(--duration-enter) var(--ease-out),
+        scale var(--duration-enter) var(--ease-out);
 
       @starting-style {
         opacity: 0;
-        scale: 0.96;
+        scale: var(--enter-scale);
       }
 
       &::backdrop {
-        transition: background-color 180ms var(--ease-out);
+        transition: background-color var(--duration-enter) var(--ease-out);
 
         @starting-style {
           background-color: transparent;
@@ -1245,12 +1409,12 @@
 
     .toast {
       transition:
-        opacity 160ms var(--ease-out),
-        translate 160ms var(--ease-out);
+        opacity var(--duration-enter) var(--ease-out),
+        translate var(--duration-enter) var(--ease-out);
 
       @starting-style {
         opacity: 0;
-        translate: -50% 6px;
+        translate: -50% var(--space-2);
       }
     }
   }
