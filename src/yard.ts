@@ -141,19 +141,37 @@ function icon(name: Symbol) {
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const children = <T extends HTMLElement = HTMLElement>(parent: Element) =>
   Array.from(parent.children) as T[];
-const context2d = (canvas: HTMLCanvasElement) => canvas.getContext("2d")!;
 const palette = $("palette");
 const removeZone = $("remove");
-const rails = $<HTMLCanvasElement>("rails");
 const frame = $("map-frame");
 const map = $("map");
-const canvasLayers = [
-  $<HTMLCanvasElement>("ground"),
-  rails,
-  $<HTMLCanvasElement>("rolling-stock"),
-  $<HTMLCanvasElement>("tunnel-roofs"),
-];
-const [groundContext, railsContext, stockContext, roofContext] = canvasLayers.map(context2d);
+
+/*
+ * All drawing goes through OffscreenCanvas. The page holds a single canvas, the yard, whose
+ * bitmap is driven by `screen`. Two offscreen layers cache what changes rarely, so an animation
+ * frame is one bitmap copy plus the trains, steam and tunnel roofs drawn over it:
+ *   groundLayer: the scenery, which is costly to paint; redrawn on resize or a new background.
+ *   sceneLayer:  the ground plus track and the drag preview; redrawn when either changes.
+ * Palette pieces, background samples and yard thumbnails are painted one at a time on the
+ * shared `sketch` canvas and shown as images.
+ */
+const yardCanvas = $<HTMLCanvasElement>("yard-canvas");
+const screen = yardCanvas.transferControlToOffscreen();
+const groundLayer = new OffscreenCanvas(1, 1);
+const sceneLayer = new OffscreenCanvas(1, 1);
+const sketch = new OffscreenCanvas(1, 1);
+// The ground paints every pixel, so the board layers can skip alpha blending with the page.
+const opaque = { alpha: false };
+const screenContext = screen.getContext("2d", opaque)!;
+const groundContext = groundLayer.getContext("2d", opaque)!;
+const sceneContext = sceneLayer.getContext("2d", opaque)!;
+const sketchContext = sketch.getContext("2d")!;
+type Context = OffscreenCanvasRenderingContext2D;
+let groundStale = true;
+let sceneStale = true;
+let frameStale = true;
+/** The board the scene layer last drew, which may be a drag preview; tunnel roofs follow it. */
+let sceneBoard: Board;
 const dialog = $<HTMLDialogElement>("layout-dialog");
 const library = $<HTMLDialogElement>("layout-library");
 const saveName = $<HTMLInputElement>("save-name");
@@ -213,14 +231,40 @@ async function listYards() {
   return [...yards.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function drawYardThumbnail(canvas: HTMLCanvasElement, yard: Yard) {
+/** Paints a picture on the shared sketch canvas and resolves to an image URL for it. */
+function sketchImage(width: number, height: number, draw: (ctx: Context) => void) {
+  sketch.width = width;
+  sketch.height = height;
+  sketchContext.resetTransform();
+  sketchContext.clearRect(0, 0, width, height);
+  draw(sketchContext);
+  // convertToBlob copies the bitmap right away, so the sketch is free for the next picture.
+  return sketch.convertToBlob().then((blob) => URL.createObjectURL(blob));
+}
+
+/** The URL each image is waiting for, so a slow, outdated picture never replaces a newer one. */
+const awaitedImages = new WeakMap<HTMLImageElement, Promise<string>>();
+function showImage(image: HTMLImageElement, url: Promise<string>) {
+  awaitedImages.set(image, url);
+  void url.then((src) => {
+    if (awaitedImages.get(image) === url) image.src = src;
+  });
+}
+/** A decorative image that shows the picture once it is ready. */
+function picture(url: Promise<string>) {
+  const image = document.createElement("img");
+  image.alt = "";
+  image.draggable = false;
+  showImage(image, url);
+  return image;
+}
+
+function drawYardThumbnail(ctx: Context, yard: Yard, width: number, height: number) {
   const { board } = yard;
-  const { cols: width, rows: height } = board;
-  const scale = Math.min(canvas.width / width, canvas.height / height);
-  const ctx = context2d(canvas);
-  ctx.translate((canvas.width - width * scale) / 2, (canvas.height - height * scale) / 2);
+  const scale = Math.min(width / board.cols, height / board.rows);
+  ctx.translate((width - board.cols * scale) / 2, (height - board.rows * scale) / 2);
   ctx.scale(scale, scale);
-  drawGround(ctx, yard.background, width, height);
+  drawGround(ctx, yard.background, board.cols, board.rows);
   drawTiles(ctx, board);
   for (const cars of carPositions(yard, initialMotion(yard)).values()) {
     for (const car of cars) drawCar(ctx, car, car.x, car.y, car.angle);
@@ -228,7 +272,20 @@ function drawYardThumbnail(canvas: HTMLCanvasElement, yard: Yard) {
   drawTunnelRoofs(ctx, board);
 }
 
-function drawTiles(ctx: CanvasRenderingContext2D, board: Board, skip = -1) {
+/** Thumbnails shown in the library; they are released when the page of yards changes. */
+let thumbnails: HTMLImageElement[] = [];
+
+function releaseThumbnails() {
+  for (const image of thumbnails) {
+    const url = awaitedImages.get(image);
+    // Forget the picture first, so a thumbnail still being painted never loads a released URL.
+    awaitedImages.delete(image);
+    void url?.then((src) => URL.revokeObjectURL(src));
+  }
+  thumbnails = [];
+}
+
+function drawTiles(ctx: Context, board: Board, skip = -1) {
   for (const [index, tile] of board.grid.entries()) {
     if (tile && index !== skip)
       drawTile(ctx, visibleTile({ board }, index)!, ...cellAt(index, board.cols), board);
@@ -241,15 +298,15 @@ function showLibrary() {
   const fresh = blankYard(store.yard.board, store.yard.background);
   const entries = [fresh, ...libraryEntries.slice(start, start + yardsPerPage)];
   savedLayouts.replaceChildren();
+  releaseThumbnails();
   entries.forEach((yard, index) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "saved-yard";
-    const thumbnail = document.createElement("canvas");
-    thumbnail.width = 288;
-    thumbnail.height = 168;
-    thumbnail.setAttribute("aria-hidden", "true");
-    drawYardThumbnail(thumbnail, yard);
+    const thumbnail = picture(
+      sketchImage(288, 168, (ctx) => drawYardThumbnail(ctx, yard, 288, 168)),
+    );
+    thumbnails.push(thumbnail);
     const caption = document.createElement("span");
     caption.textContent = index === 0 ? "New yard" : yard.name;
     button.append(thumbnail, caption);
@@ -354,14 +411,11 @@ for (const [key, name] of Object.entries(BACKGROUNDS) as [Background, string][])
   button.type = "button";
   button.className = "background-option";
   button.dataset.background = key;
-  const sample = document.createElement("canvas");
-  sample.width = 216;
-  sample.height = 126;
-  sample.setAttribute("aria-hidden", "true");
-  const context = context2d(sample);
-  context.scale(sample.width / COLS, sample.height / ROWS);
-  drawGround(context, key, COLS, ROWS);
-  button.append(sample, name);
+  const sample = sketchImage(216, 126, (ctx) => {
+    ctx.scale(216 / COLS, 126 / ROWS);
+    drawGround(ctx, key, COLS, ROWS);
+  });
+  button.append(picture(sample), name);
   button.onclick = () => {
     store.dispatch({ type: "setBackground", background: key });
     dialog.close("background");
@@ -433,33 +487,42 @@ function updateCoordinates() {
   $("rows").replaceChildren(...rowLabels);
 }
 
-function drawPreview(
-  canvas: HTMLCanvasElement,
+/** Piece pictures by kind, type, turn and color; there are few, so they are kept for reuse. */
+const previews = new Map<string, Promise<string>>();
+
+function preview(
   type: TrackType | StockType,
   kind: PaletteKind,
   paint: ColorName = color,
   tile: Tile = { type: type as TrackType, turn: 0, branch: false },
 ) {
-  const ctx = context2d(canvas);
-  ctx.resetTransform();
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.translate(canvas.width / 2, canvas.height / 2);
-  if (kind === "track") {
-    ctx.scale(120, 120);
-    drawTile(ctx, tile, -0.5, -0.5);
-    if (tile.type === "tunnel") drawTunnelRoof(ctx, tile, -0.5, -0.5);
-  } else {
-    ctx.scale(220, 220);
-    drawCar(ctx, { type: type as StockType, color: paint }, 0, 0);
-  }
+  const key =
+    kind === "track"
+      ? [kind, tile.type, tile.turn, tile.branch].join()
+      : [kind, type, paint].join();
+  let url = previews.get(key);
+  if (url) return url;
+  const width = kind === "track" ? 144 : 176;
+  const height = kind === "track" ? 128 : 120;
+  url = sketchImage(width, height, (ctx) => {
+    ctx.translate(width / 2, height / 2);
+    if (kind === "track") {
+      ctx.scale(120, 120);
+      drawTile(ctx, tile, -0.5, -0.5);
+      if (tile.type === "tunnel") drawTunnelRoof(ctx, tile, -0.5, -0.5);
+    } else {
+      ctx.scale(220, 220);
+      drawCar(ctx, { type: type as StockType, color: paint }, 0, 0);
+    }
+  });
+  previews.set(key, url);
+  return url;
 }
-function preview(type: TrackType | StockType, kind: PaletteKind, paint?: ColorName, tile?: Tile) {
-  const canvas = document.createElement("canvas");
-  canvas.width = kind === "track" ? 144 : 176;
-  canvas.height = kind === "track" ? 128 : 120;
-  canvas.setAttribute("aria-hidden", "true");
-  drawPreview(canvas, type, kind, paint, tile);
-  return canvas;
+
+/** The picture of a dragged piece. */
+function dragPreview(item: Item & { type: TrackType | StockType }) {
+  const kind = item.kind === "board" ? (item.train !== undefined ? "cars" : "track") : item.kind;
+  return preview(item.type, kind, item.color, item.tile);
 }
 
 function fillPalette() {
@@ -475,7 +538,7 @@ function fillPalette() {
     card.dataset.piece = item.type;
     const label = document.createElement("span");
     label.textContent = item.kind === "track" ? TRACK[item.type].name : STOCK[item.type].name;
-    card.append(preview(item.type, item.kind), label);
+    card.append(picture(preview(item.type, item.kind)), label);
     card.addEventListener("pointerdown", (event) => beginDrag(event, item));
     palette.append(card);
   }
@@ -492,7 +555,7 @@ function updatePalette(refreshArt = false) {
   if (refreshArt) {
     for (const card of children(palette)) {
       const piece = card.dataset.piece as TrackType | StockType;
-      drawPreview(card.firstElementChild as HTMLCanvasElement, piece, paletteKind);
+      showImage(card.firstElementChild as HTMLImageElement, preview(piece, paletteKind));
     }
   }
   for (const swatch of children($("swatches")))
@@ -501,7 +564,7 @@ function updatePalette(refreshArt = false) {
     ? "Drag tracks to place or move them. Tap to turn."
     : "Drag cars onto the rails. Drop an engine on a train to join it.";
   $("tool-hint").innerHTML = icon("touch") + hint;
-  redrawRails();
+  refreshScene();
 }
 
 for (const [key, [name, fill]] of Object.entries(COLORS) as [ColorName, [string, string]][]) {
@@ -537,14 +600,53 @@ function resize() {
   map.style.width = cell * cols + marginX + "px";
   map.style.height = cell * rows + marginY + "px";
   const dpr = Math.min(2, window.devicePixelRatio || 1);
-  for (const canvas of canvasLayers) {
+  for (const canvas of [screen, groundLayer, sceneLayer]) {
     canvas.width = Math.max(1, Math.round(cell * cols * dpr));
     canvas.height = Math.max(1, Math.round(cell * rows * dpr));
-    context2d(canvas).setTransform(canvas.width / cols, 0, 0, canvas.height / rows, 0, 0);
   }
-  drawGround(groundContext, background(), cols, rows);
-  redrawRails();
-  redrawStock();
+  refreshGround();
+  // Resizing cleared the screen, and a resize observer runs after this frame's tick: draw now.
+  render();
+}
+
+/** Scales a context so one unit is one grid square. */
+function toBoardUnits(ctx: Context) {
+  ctx.setTransform(ctx.canvas.width / cols, 0, 0, ctx.canvas.height / rows, 0, 0);
+}
+
+/** Copies a whole layer onto another of the same size, pixel for pixel. */
+function copyLayer(ctx: Context, layer: OffscreenCanvas) {
+  ctx.resetTransform();
+  ctx.drawImage(layer, 0, 0);
+}
+
+/** Marks layers for redrawing on the next frame, which redraws each at most once. */
+function refreshGround() {
+  groundStale = sceneStale = frameStale = true;
+}
+function refreshScene() {
+  sceneStale = frameStale = true;
+}
+function refreshFrame() {
+  frameStale = true;
+}
+
+/** Draws the stale layers and composes the frame onto the screen. */
+function render(now = performance.now(), emitSmoke = false) {
+  if (groundStale) {
+    toBoardUnits(groundContext);
+    drawGround(groundContext, background(), cols, rows);
+    groundStale = false;
+  }
+  if (sceneStale) {
+    drawScene();
+    sceneStale = false;
+  }
+  copyLayer(screenContext, sceneLayer);
+  toBoardUnits(screenContext);
+  drawStock(screenContext, now, emitSmoke);
+  drawTunnelRoofs(screenContext, sceneBoard);
+  frameStale = false;
 }
 
 function movesTrack(item: Item | null): item is TrackMove {
@@ -563,9 +665,11 @@ const boardPoint = (cell: Cell): BoardPoint => ({
   y: cell.y - cell.row,
 });
 
-function redrawRails() {
-  railsContext.clearRect(0, 0, cols, rows);
-  roofContext.clearRect(0, 0, cols, rows);
+/** Draws the ground, the track and any drag preview onto the scene layer. */
+function drawScene() {
+  const ctx = sceneContext;
+  copyLayer(ctx, groundLayer);
+  toBoardUnits(ctx);
   const trackDrop = hover && movesTrack(drag) ? drag : null;
   // A drag previews the edit without committing it.
   const preview: EditResult | null =
@@ -573,30 +677,31 @@ function redrawRails() {
       ? applyEdit(store.yard, store.motion, trackEdit(trackDrop, hover.index))
       : null;
   const board = preview?.ok ? preview.yard.board : store.yard.board;
-  drawTiles(railsContext, board, hover?.index);
-  drawTunnelRoofs(roofContext, board);
+  sceneBoard = board;
+  drawTiles(ctx, board, hover?.index);
   if (!hover) return;
   const { column, row, index } = hover;
   const tile = board.grid[index];
   const valid = trackDrop
     ? Boolean(preview?.ok) || (preview?.ok === false && preview.reason === "no-change")
     : Boolean(tile);
-  railsContext.fillStyle = valid ? "#fff2b883" : "#c7705959";
-  railsContext.fillRect(column, row, 1, 1);
-  railsContext.strokeStyle = valid ? "#935e2d" : "#9b4538";
-  railsContext.lineWidth = 0.05;
-  railsContext.strokeRect(column + 0.025, row + 0.025, 0.95, 0.95);
-  if (tile) drawTile(railsContext, visibleTile({ board }, index)!, column, row, board);
+  ctx.fillStyle = valid ? "#fff2b883" : "#c7705959";
+  ctx.fillRect(column, row, 1, 1);
+  ctx.strokeStyle = valid ? "#935e2d" : "#9b4538";
+  ctx.lineWidth = 0.05;
+  ctx.strokeRect(column + 0.025, row + 0.025, 0.95, 0.95);
+  if (tile) drawTile(ctx, visibleTile({ board }, index)!, column, row, board);
   if (valid && drag?.kind === "cars") {
     const placed = placeCar(board, index, hover.x - column, hover.y - row)!;
     const car: Car = { type: drag.type, color: drag.color };
     const [position] = carPositionsOn(placed.history, placed.progress, [car], cols);
-    railsContext.globalAlpha = 0.73;
-    drawCar(railsContext, position, position.x, position.y, position.angle);
-    railsContext.globalAlpha = 1;
+    ctx.globalAlpha = 0.73;
+    drawCar(ctx, position, position.x, position.y, position.angle);
+    ctx.globalAlpha = 1;
   }
 }
-function drawTunnelRoofs(ctx: CanvasRenderingContext2D, board: Board) {
+
+function drawTunnelRoofs(ctx: Context, board: Board) {
   for (const [index, tile] of board.grid.entries()) {
     if (tile?.type === "tunnel") drawTunnelRoof(ctx, tile, ...cellAt(index, board.cols), board);
   }
@@ -609,8 +714,8 @@ function resetTrainEffects() {
   activeCrane = null;
 }
 
-function redrawStock(now = performance.now(), emitSmoke = false) {
-  stockContext.clearRect(0, 0, cols, rows);
+/** Draws the trains and their steam, puffing more steam when `emitSmoke` is set. */
+function drawStock(ctx: Context, now: number, emitSmoke: boolean) {
   const { yard } = store;
   const positions = carPositions(yard, store.motion);
   for (const train of yard.trains) {
@@ -621,7 +726,7 @@ function redrawStock(now = performance.now(), emitSmoke = false) {
           ? (now - activeCrane.start) / craneSwingDuration
           : 0;
       const angle = Math.sin(Math.PI * Math.max(0, Math.min(1, swing))) * 1.65;
-      drawCar(stockContext, car, car.x, car.y, car.angle, angle);
+      drawCar(ctx, car, car.x, car.y, car.angle, angle);
       if (
         emitSmoke &&
         car.type === "steam" &&
@@ -638,7 +743,7 @@ function redrawStock(now = performance.now(), emitSmoke = false) {
   }
   smokePuffs = smokePuffs.filter((puff) => now - puff.start < puffLifetime);
   for (const puff of smokePuffs)
-    drawSteamPuff(stockContext, puff, Math.max(0, now - puff.start) / puffLifetime);
+    drawSteamPuff(ctx, puff, Math.max(0, now - puff.start) / puffLifetime);
 }
 
 function tick(now: number) {
@@ -655,13 +760,13 @@ function tick(now: number) {
     movingTrains = new Set();
     sound.stopRolling();
   }
-  if (moving || activeCrane || smokePuffs.length) redrawStock(now, Boolean(moving));
+  if (moving || activeCrane || smokePuffs.length || frameStale) render(now, Boolean(moving));
   if (activeCrane && now - activeCrane.start >= craneSwingDuration) activeCrane = null;
   requestAnimationFrame(tick);
 }
 
 function locate(event: PointerEvent): Cell | null {
-  const rect = rails.getBoundingClientRect();
+  const rect = yardCanvas.getBoundingClientRect();
   const x = ((event.clientX - rect.left) / rect.width) * cols;
   const y = ((event.clientY - rect.top) / rect.height) * rows;
   const column = Math.floor(x);
@@ -730,6 +835,8 @@ function beginDrag(event: PointerEvent, item: Item) {
     ghost: null,
     moved: false,
   };
+  // Start painting the drag picture now, so it is ready once the pointer moves.
+  if (item.type) void dragPreview(item);
 }
 
 function overRemove(event: PointerEvent) {
@@ -751,8 +858,7 @@ function moveDrag(event: PointerEvent) {
   if (!ghost) {
     ghost = drag.ghost = document.createElement("div");
     ghost.className = "drag-ghost";
-    const kind = drag.kind === "board" ? (drag.train !== undefined ? "cars" : "track") : drag.kind;
-    ghost.append(preview(drag.type, kind, drag.color, drag.tile));
+    ghost.append(picture(dragPreview(drag)));
     document.body.append(ghost);
     removeZone.classList.toggle("available", drag.kind === "board");
   }
@@ -761,7 +867,7 @@ function moveDrag(event: PointerEvent) {
   ghost.hidden = Boolean(hover);
   ghost.style.transform =
     "translate(" + (event.clientX - 36) + "px," + (event.clientY - 36) + "px)";
-  redrawRails();
+  refreshScene();
 }
 
 function endDrag(event: PointerEvent) {
@@ -782,22 +888,22 @@ function endDrag(event: PointerEvent) {
       dropPiece(target, item);
     }
   }
-  redrawRails();
+  refreshScene();
 }
 
-for (const surface of [palette, rails]) {
+for (const surface of [palette, yardCanvas]) {
   surface.addEventListener("pointermove", moveDrag);
   surface.addEventListener("pointerup", endDrag);
   surface.addEventListener("pointercancel", endDrag);
   surface.addEventListener("lostpointercapture", endDrag);
 }
-rails.addEventListener("pointerdown", (event) => {
+yardCanvas.addEventListener("pointerdown", (event) => {
   const cell = locate(event);
   if (!cell) return;
   keyboardCell = [cell.column, cell.row];
   beginDrag(event, boardItem(cell));
 });
-rails.addEventListener("keydown", (event) => {
+yardCanvas.addEventListener("keydown", (event) => {
   const movement: Partial<Record<string, Point>> = {
     ArrowUp: [0, -1],
     ArrowRight: [1, 0],
@@ -817,11 +923,11 @@ rails.addEventListener("keydown", (event) => {
   hover = { column, row, x: column + 0.5, y: row + 0.5, index: indexAt(column, row, cols) };
   if (event.key === "Delete" || event.key === "Backspace") removePiece(boardItem(hover));
   else if (!step) tapBoard(hover);
-  redrawRails();
+  refreshScene();
 });
-rails.addEventListener("blur", () => {
+yardCanvas.addEventListener("blur", () => {
   hover = null;
-  redrawRails();
+  refreshScene();
 });
 
 $("track-tab").onclick = () => setPalette("track");
@@ -1000,10 +1106,9 @@ store.subscribe(({ yard, previous, edit }) => {
     resize();
     return;
   }
-  if (yard.background !== previous.background)
-    drawGround(groundContext, yard.background, cols, rows);
-  if (yard.board !== previous.board) redrawRails();
-  redrawStock();
+  if (yard.background !== previous.background) refreshGround();
+  if (yard.board !== previous.board) refreshScene();
+  refreshFrame();
 });
 
 fillPalette();
