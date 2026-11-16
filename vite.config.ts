@@ -1,6 +1,11 @@
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
+  build: {
+    // The app targets current Safari on iPad, so ship modern CSS (nesting, light-dark(), etc.)
+    // as written instead of lowering it for older browsers.
+    target: "safari26",
+  },
   server: {
     // Forward save/load requests to the layouts service (`node layouts.ts`) during development.
     proxy: { "/api/layouts": "http://127.0.0.1:3000" },
