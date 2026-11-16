@@ -519,7 +519,7 @@ function resize() {
   const cell = Math.max(1, Math.min((width - marginX) / cols, (height - marginY) / rows));
   map.style.width = cell * cols + marginX + "px";
   map.style.height = cell * rows + marginY + "px";
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const dpr = Math.min(2, window.devicePixelRatio);
   send({
     type: "resize",
     width: Math.max(1, Math.round(cell * cols * dpr)),
