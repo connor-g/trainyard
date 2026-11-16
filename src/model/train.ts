@@ -22,18 +22,22 @@ export const toRefs = (path: readonly SegmentRef[]): SegmentRef[] =>
   path.map(({ index, from, to }) => ({ index, from, to }));
 
 /** How far along a segment that ends the line a train stops: short of the end, but not before its middle. */
-export const deadEndStop = (path: Segment) =>
+export const deadEndStop = (path: Segment): number =>
   path.length - Math.min(END_CLEARANCE, path.length / 2);
 
 /** The track available behind the engine, from the start of the path to the engine. */
-export function lengthBehind(history: readonly Segment[], progress: number) {
+export function lengthBehind(history: readonly Segment[], progress: number): number {
   let total = progress;
   for (let i = 0; i < history.length - 1; i += 1) total += history[i].length;
   return total;
 }
 
 /** Index of the segment under the last car. */
-export function lastCarSegment(history: readonly Segment[], progress: number, cars: number) {
+export function lastCarSegment(
+  history: readonly Segment[],
+  progress: number,
+  cars: number,
+): number {
   let index = history.length - 1;
   let distance = progress - (cars - 1) * CAR_GAP;
   while (index > 0 && distance < 0) {
@@ -44,7 +48,11 @@ export function lastCarSegment(history: readonly Segment[], progress: number, ca
 }
 
 /** The part of a path the cars cover, from the last car to the engine. */
-export function coveredPath(history: readonly Segment[], progress: number, cars: number) {
+export function coveredPath(
+  history: readonly Segment[],
+  progress: number,
+  cars: number,
+): Segment[] {
   return history.slice(lastCarSegment(history, progress, cars));
 }
 
@@ -92,7 +100,7 @@ export function isValidPath(
   history: readonly Segment[],
   progress: number,
   cars: number,
-) {
+): boolean {
   if (!history.length || validSuffix(board, history).length !== history.length) return false;
   const last = history[history.length - 1];
   if (!(progress >= -EPSILON && progress <= last.length + EPSILON)) return false;
@@ -141,7 +149,7 @@ export function placeCar(
   return { history: [path], progress: path.length / 2 };
 }
 
-export function closestApproach(a: readonly CarPosition[], b: readonly CarPosition[]) {
+export function closestApproach(a: readonly CarPosition[], b: readonly CarPosition[]): number {
   let closest = Infinity;
   for (const first of a) {
     for (const second of b) {
@@ -152,5 +160,5 @@ export function closestApproach(a: readonly CarPosition[], b: readonly CarPositi
 }
 
 /** Two trains overlap when any of their cars are within collision distance. */
-export const overlaps = (a: readonly CarPosition[], b: readonly CarPosition[]) =>
+export const overlaps = (a: readonly CarPosition[], b: readonly CarPosition[]): boolean =>
   closestApproach(a, b) < COLLISION;

@@ -424,7 +424,7 @@ function desert(ctx: Context, rand: () => number) {
   }
 }
 
-export function drawGround(ctx: Context, background: Background, cols: number, rows: number) {
+export function drawGround(ctx: Context, background: Background, cols: number, rows: number): void {
   ctx.save();
   ctx.scale(cols / COLS, rows / SCENE_ROWS);
   const theme = background;
@@ -581,7 +581,13 @@ function rail(ctx: Context, path: Segment, offset: number, color: Paint, width: 
 // Overlap joined segments slightly so canvas antialiasing cannot leave a hairline gap.
 const joinedHalfLength = 0.515;
 
-export function drawTunnelRoof(ctx: Context, tile: Tile, x: number, y: number, board?: Board) {
+export function drawTunnelRoof(
+  ctx: Context,
+  tile: Tile,
+  x: number,
+  y: number,
+  board?: Board,
+): void {
   const [joinStart, joinEnd] = structureJoins(board, x, y, tile);
   const start = joinStart ? -joinedHalfLength : -TUNNEL_HALF_LENGTH;
   const end = joinEnd ? joinedHalfLength : TUNNEL_HALF_LENGTH;
@@ -748,7 +754,7 @@ function trackScenery(ctx: Context, tile: Tile, foreground: boolean, joins: Join
   ctx.restore();
 }
 
-export function drawTile(ctx: Context, tile: Tile, x = 0, y = 0, board?: Board) {
+export function drawTile(ctx: Context, tile: Tile, x = 0, y = 0, board?: Board): void {
   ctx.save();
   ctx.translate(x, y);
   const paths = trackPaths(tile, true).map(([from, to]) => segment(0, from, to));
@@ -808,7 +814,11 @@ export function steamPuff(car: Position): SteamPuff {
   return { x: car.x + steamStackOffset * dx, y: car.y + steamStackOffset * dy, dx, dy };
 }
 
-export function drawSteamPuff(ctx: Context, puff: SteamPuff & { drift: number }, age: number) {
+export function drawSteamPuff(
+  ctx: Context,
+  puff: SteamPuff & { drift: number },
+  age: number,
+): void {
   const x = puff.x - 0.28 * age * puff.dx + puff.drift * age;
   const y = puff.y - (0.2 + 0.28 * puff.dy) * age;
   const radius = 0.036 + 0.092 * age;
@@ -821,7 +831,14 @@ export function drawSteamPuff(ctx: Context, puff: SteamPuff & { drift: number },
   ctx.restore();
 }
 
-export function drawCar(ctx: Context, car: Car, x: number, y: number, angle = 0, boomAngle = 0) {
+export function drawCar(
+  ctx: Context,
+  car: Car,
+  x: number,
+  y: number,
+  angle = 0,
+  boomAngle = 0,
+): void {
   const color = COLORS[car.color][1];
   const edge = "#3c3930";
   const metal = "#343833";

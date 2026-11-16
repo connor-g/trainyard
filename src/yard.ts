@@ -137,28 +137,29 @@ function edit(change: PageEdit) {
 /* Pictures ------------------------------------------------------------------------------ */
 
 /** Asks the worker for a picture and resolves to an image URL for it. */
-function pictureUrl(spec: PictureSpec) {
-  return request("picture", { spec }).then((blob) => URL.createObjectURL(blob));
+async function pictureUrl(spec: PictureSpec) {
+  return URL.createObjectURL(await request("picture", { spec }));
 }
 
 /** The URL each image is waiting for, so a slow, outdated picture never replaces a newer one. */
 const awaitedImages = new WeakMap<HTMLImageElement, Promise<string>>();
-function showImage(image: HTMLImageElement, url: Promise<string>) {
+async function showImage(image: HTMLImageElement, url: Promise<string>) {
   awaitedImages.set(image, url);
-  // A picture that fails to draw leaves the image blank.
-  url.then(
-    (src) => {
-      if (awaitedImages.get(image) === url) image.src = src;
-    },
-    () => {},
-  );
+  let src: string;
+  try {
+    src = await url;
+  } catch {
+    // A picture that fails to draw leaves the image blank.
+    return;
+  }
+  if (awaitedImages.get(image) === url) image.src = src;
 }
 /** A decorative image that shows the picture once it is ready. */
 function picture(url: Promise<string>) {
   const image = document.createElement("img");
   image.alt = "";
   image.draggable = false;
-  showImage(image, url);
+  void showImage(image, url);
   return image;
 }
 
@@ -194,12 +195,17 @@ function releaseThumbnails() {
     const url = awaitedImages.get(image);
     // Forget the picture first, so a thumbnail still being painted never loads a released URL.
     awaitedImages.delete(image);
-    url?.then(
-      (src) => URL.revokeObjectURL(src),
-      () => {},
-    );
+    if (url) void revokeWhenReady(url);
   }
   thumbnails = [];
+}
+
+async function revokeWhenReady(url: Promise<string>) {
+  try {
+    URL.revokeObjectURL(await url);
+  } catch {
+    // A picture that failed to draw has no URL to release.
+  }
 }
 
 /* Library ------------------------------------------------------------------------------- */
@@ -458,7 +464,7 @@ function updatePalette(refreshArt = false) {
   if (refreshArt) {
     for (const card of children(palette)) {
       const piece = card.dataset.piece as TrackType | StockType;
-      showImage(
+      void showImage(
         card.firstElementChild as HTMLImageElement,
         piecePicture(heldPiece(paletteItem(piece))),
       );
@@ -537,16 +543,27 @@ function beginDrag(event: PointerEvent, from: PalettePiece | BoardFraction) {
     piece: undefined,
     ghost: null,
   });
-  request("grab", { from }).then(
-    (piece) => {
-      current.piece = piece;
-      // Start painting the drag picture now, so it is ready once the pointer moves.
-      if (piece) piecePicture(piece).catch(() => {});
-    },
-    () => {
-      current.piece = null;
-    },
-  );
+  void grabPiece(current, from);
+}
+
+/** Asks the worker what the drag picked up. */
+async function grabPiece(current: Drag, from: PalettePiece | BoardFraction) {
+  try {
+    current.piece = await request("grab", { from });
+  } catch {
+    current.piece = null;
+    return;
+  }
+  // Start painting the drag picture now, so it is ready once the pointer moves.
+  if (current.piece) void warmPicture(current.piece);
+}
+
+async function warmPicture(piece: HeldPiece) {
+  try {
+    await piecePicture(piece);
+  } catch {
+    // The drag shows no picture, as if it were still painting.
+  }
 }
 
 function overRemove(event: PointerEvent) {

@@ -70,6 +70,6 @@ export function visibleTile({ board }: { readonly board: Board }, index: number)
 }
 
 /** Whether the start path is valid on the board for a train of `cars` cars. */
-export function isValidStart(board: Board, cars: number, start: StartPath) {
+export function isValidStart(board: Board, cars: number, start: StartPath): boolean {
   return isValidPath(board, toSegments(start.path), start.progress, cars);
 }

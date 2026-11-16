@@ -91,7 +91,7 @@ export function motionOf(motion: Motion, id: TrainId): TrainMotion {
 }
 
 /** Compares positions by segment keys, progress and held, not by object identity. */
-export function motionEquals(a: Motion, b: Motion) {
+export function motionEquals(a: Motion, b: Motion): boolean {
   if (a.size !== b.size) return false;
   for (const [id, first] of a) {
     const second = b.get(id);

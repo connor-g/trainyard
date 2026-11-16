@@ -52,4 +52,4 @@ export interface CarRef {
 
 let lastTrainId = 0;
 /** Ids are only ever handed out, never reused, so they stay unique for the whole session. */
-export const nextTrainId = () => ++lastTrainId as TrainId;
+export const nextTrainId = (): TrainId => ++lastTrainId as TrainId;
