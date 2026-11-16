@@ -28,7 +28,12 @@ Open the address the dev server prints. To play from another device on your home
 
 ## Layouts and saves
 
-The built-in layouts are defined in [src/presets.ts](src/presets.ts). Saved yards are stored in the browser's local storage, so they stay on the device and browser where you saved them. A save holds the yard as built, with each train at its start position, so reloading the page starts every train from where it was placed.
+The built-in layouts are defined in [src/presets.ts](src/presets.ts). Saved yards go into a **library**, chosen at the top of **Save or load a yard**:
+
+- **This device** (the default) keeps yards in the browser's IndexedDB, so they stay on the device and browser where you saved them.
+- **An S3 library** keeps yards in an S3-compatible bucket (AWS S3, Cloudflare R2, MinIO, ...), so several devices can share them. Choose **Add an S3 library** and enter the bucket URL, an access key and, optionally, a region and key prefix. The bucket's CORS rules must allow the app's origin to `GET`, `HEAD`, `PUT` and `DELETE`, send the `Authorization`, `Content-Type`, `If-Match`, `If-None-Match`, `x-amz-content-sha256` and `x-amz-date` headers, and expose `ETag`. The key is stored in the browser's local storage, so use one limited to that bucket.
+
+Each yard is saved as `yards/<name>.json`, keyed by its name ignoring case, so saving under an existing name replaces it. A save holds the yard as built, with each train at its start position.
 
 ## Development
 
@@ -44,8 +49,9 @@ The app's source is in `src/`, with `index.html` at the repository root. Files i
 - `src/railway.ts` holds the catalogs and track geometry.
 - `src/model/` is the game model, with no state of its own. A `Yard` is what the player built (the board, background and each train's cars and start path) and `Motion` is where the trains are right now. Both are immutable: their types are deeply `readonly`, so the compiler rejects changes in place. `applyEdit` turns an edit into a new yard and motion, and `step` advances the trains.
 - `src/store.ts` holds the current yard, the motion and an in-memory undo stack. Undo reverses one edit and never rewinds train movement.
-- `src/saves.ts` reads and writes saved yards in local storage.
-- `src/storage/` is a blob store: `BlobStorage` (list, create, read, update, delete) with an IndexedDB implementation (`idb-storage.ts`, using [idb](https://github.com/jakearchibald/idb)) and an S3-compatible one (`s3-storage.ts`, signing requests with [aws4fetch](https://github.com/mhart/aws4fetch)). Neither is wired into the app yet. The S3 tests run against an in-memory bucket served by [MSW](https://mswjs.io/).
+- `src/saves.ts` converts yards to and from their saved shape.
+- `src/storage/` is a blob store: `BlobStorage` (list, create, read, update, delete) with an IndexedDB implementation (`idb-storage.ts`, using [idb](https://github.com/jakearchibald/idb)) and an S3-compatible one (`s3-storage.ts`, signing requests with [aws4fetch](https://github.com/mhart/aws4fetch)). The S3 tests run against an in-memory bucket served by [MSW](https://mswjs.io/).
+- `src/libraries.ts` holds the storage libraries: their settings (kept in local storage, with the IndexedDB library always present and used by default) and `YardLibrary` for saving and listing yards in one library's blob store.
 - `src/yard.ts` is the page: input, rendering, sound and dialogs.
 
 TypeScript is set up with strict typing, erasable syntax only, and isolated modules, targeting ES2025 to match the latest Safari. All source files are TypeScript (`.ts`).

@@ -31,7 +31,17 @@ import { MAX_CARS, carPositionsOn, placeCar } from "./model/train.ts";
 import type { BoardPoint, TrainId, Yard } from "./model/types.ts";
 import { createStore } from "./store.ts";
 import { blankYard, sampleLayout, scenicPresets } from "./presets.ts";
-import { fromSaved, toSaved } from "./saves.ts";
+import {
+  DEFAULT_LIBRARY,
+  YardLibrary,
+  activeLibrary,
+  addLibrary,
+  readLibraries,
+  removeLibrary,
+  setActiveLibrary,
+  yardNameKey,
+} from "./libraries.ts";
+import type { LibrarySettings, NewLibrary, SettingsStore } from "./libraries.ts";
 import {
   drawGround,
   drawTile,
@@ -149,16 +159,13 @@ const library = $<HTMLDialogElement>("layout-library");
 const saveName = $<HTMLInputElement>("save-name");
 const savedLayouts = $("saved-layouts");
 const libraryNote = $("library-note");
-// Version 1 saves (with current positions) are left untouched under their own keys for migration.
-const saveKey = "rail-yard-v2";
-const libraryKey = "rail-yard-saved-layouts-v2";
 const soundKey = "rail-yard-muted";
 const sound = new TrainSound();
 try {
   sound.enabled = localStorage.getItem(soundKey) !== "yes";
 } catch {}
 const soundButton = $("sound");
-const store = createStore(load());
+const store = createStore(sampleLayout());
 let { cols, rows } = store.yard.board;
 let paletteKind: PaletteKind = "track";
 let color: ColorName = "brick";
@@ -177,51 +184,33 @@ let activeCrane: { trainId: TrainId; carIndex: number; start: number } | null = 
 const carKey = (trainId: TrainId, carIndex: number) => trainId + ":" + carIndex;
 const craneSwingDuration = 950;
 
-function load(): Yard {
-  try {
-    const raw = localStorage.getItem(saveKey);
-    const saved = raw ? fromSaved(JSON.parse(raw)) : null;
-    if (saved) return saved;
-  } catch {
-    // A blocked or unavailable storage area still allows play for this visit.
-  }
-  return sampleLayout();
-}
-
 let libraryEntries: Yard[] = [];
 let libraryPage = 0;
 const yardsPerPage = 5;
 
-function readSavedYards(): Yard[] {
+/** Library settings live in local storage; with it blocked, only the default library is offered. */
+const settingsStore: SettingsStore = (() => {
   try {
-    const entries: unknown = JSON.parse(localStorage.getItem(libraryKey) ?? "[]");
-    if (!Array.isArray(entries)) return [];
-    return entries
-      .filter((entry) => typeof entry?.name === "string" && entry.name.trim())
-      .flatMap((entry) => fromSaved(entry) ?? []);
+    localStorage.getItem(soundKey);
+    return localStorage;
   } catch {
-    return [];
+    const memory = new Map<string, string>();
+    return {
+      getItem: (key) => memory.get(key) ?? null,
+      setItem: (key, value) => void memory.set(key, value),
+      removeItem: (key) => void memory.delete(key),
+    };
   }
-}
+})();
+let yardLibrary = new YardLibrary(activeLibrary(settingsStore));
 
-function listYards() {
-  // Saved yards replace built-in yards with the same name.
+/** The built-in yards and those in the current library, which replace built-ins with the same name. */
+async function listYards() {
   const yards = new Map<string, Yard>();
-  for (const yard of [sampleLayout(), ...scenicPresets(), ...readSavedYards()]) {
-    yards.set(layoutNameKey(yard.name), yard);
+  for (const yard of [sampleLayout(), ...scenicPresets(), ...(await yardLibrary.list())]) {
+    yards.set(yardNameKey(yard.name), yard);
   }
   return [...yards.values()].sort((a, b) => a.name.localeCompare(b.name));
-}
-
-function storeYard(yard: Yard) {
-  const key = layoutNameKey(yard.name);
-  const saved = readSavedYards().filter((entry) => layoutNameKey(entry.name) !== key);
-  saved.push(yard);
-  localStorage.setItem(libraryKey, JSON.stringify(saved.map(toSaved)));
-}
-
-function layoutNameKey(name: string) {
-  return name.toLowerCase();
 }
 
 function drawYardThumbnail(canvas: HTMLCanvasElement, yard: Yard) {
@@ -292,19 +281,11 @@ $("library-next").onclick = () => {
 };
 
 function updateSaveLabel(entries: Yard[]) {
-  const name = layoutNameKey(saveName.value.trim());
-  const exists = entries.some((entry) => layoutNameKey(entry.name) === name);
+  const name = yardNameKey(saveName.value.trim());
+  const exists = entries.some((entry) => yardNameKey(entry.name) === name);
   $("save-yard").textContent = exists ? "Update yard" : "Save yard";
 }
 
-/** Saves the yard as built, with every train at its start; train movement never needs saving. */
-function save() {
-  try {
-    localStorage.setItem(saveKey, JSON.stringify(toSaved(store.yard)));
-  } catch {
-    // Keep the current layout usable in memory.
-  }
-}
 const refusalMessages: Record<Refusal, string> = {
   "square-occupied": "Wait for the train to clear this square.",
   "needs-track": "Drop the car on a track piece.",
@@ -851,32 +832,130 @@ $("layouts").onclick = () => {
   dialog.returnValue = "cancel";
   dialog.showModal();
 };
+const librarySelect = $<HTMLSelectElement>("library-select");
+const removeLibraryButton = $<HTMLButtonElement>("remove-library");
+const s3Form = $<HTMLFormElement>("s3-library");
+/** Counts library loads, so a slow one that finishes after a newer one is ignored. */
+let libraryLoad = 0;
+
+function fillLibrarySelect() {
+  const libraries = readLibraries(settingsStore);
+  librarySelect.replaceChildren(
+    ...libraries.map((settings) => {
+      const option = document.createElement("option");
+      option.value = settings.id;
+      option.textContent = settings.kind === "s3" ? settings.name + " (S3)" : settings.name;
+      return option;
+    }),
+  );
+  librarySelect.value = yardLibrary.settings.id;
+  removeLibraryButton.hidden = yardLibrary.settings.id === DEFAULT_LIBRARY.id;
+}
+
+function useLibrary(settings: LibrarySettings) {
+  setActiveLibrary(settingsStore, settings.id);
+  yardLibrary = new YardLibrary(settings);
+  fillLibrarySelect();
+  return reloadLibrary();
+}
+
+/** Shows the built-in yards right away, then adds the library's yards once they arrive. */
+async function reloadLibrary() {
+  const load = (libraryLoad += 1);
+  const current = yardLibrary;
+  libraryEntries = [sampleLayout(), ...scenicPresets()].sort((a, b) =>
+    a.name.localeCompare(b.name),
+  );
+  libraryPage = 0;
+  libraryNote.textContent = "Loading " + current.settings.name + "…";
+  showLibrary();
+  try {
+    const entries = await listYards();
+    if (load !== libraryLoad) return;
+    libraryEntries = entries;
+    libraryNote.textContent = "";
+  } catch {
+    if (load !== libraryLoad) return;
+    libraryNote.textContent =
+      "Could not open " + current.settings.name + ". Showing built-in yards.";
+  }
+  showLibrary();
+}
+
+librarySelect.onchange = () => {
+  const settings = readLibraries(settingsStore).find(({ id }) => id === librarySelect.value);
+  if (settings) void useLibrary(settings);
+};
+removeLibraryButton.onclick = () => {
+  const { id, name } = yardLibrary.settings;
+  if (id === DEFAULT_LIBRARY.id) return;
+  if (!confirm("Remove " + name + "? Yards saved in it stay in the bucket.")) return;
+  removeLibrary(settingsStore, id);
+  void useLibrary(DEFAULT_LIBRARY);
+};
+s3Form.onsubmit = async (event) => {
+  event.preventDefault();
+  const field = (name: string) =>
+    (s3Form.elements.namedItem(name) as HTMLInputElement).value.trim();
+  const region = field("region");
+  const keyPrefix = field("keyPrefix");
+  const settings: NewLibrary = {
+    kind: "s3",
+    name: field("name"),
+    bucketUrl: field("bucketUrl"),
+    accessKeyId: field("accessKeyId"),
+    secretAccessKey: field("secretAccessKey"),
+    ...(region && { region }),
+    ...(keyPrefix && { keyPrefix }),
+  };
+  const submit = $<HTMLButtonElement>("add-s3");
+  submit.disabled = true;
+  libraryNote.textContent = "Connecting to " + settings.name + "…";
+  try {
+    // Check the bucket answers before keeping its settings.
+    await new YardLibrary({ ...settings, id: "draft" }).list();
+  } catch {
+    libraryNote.textContent =
+      "Could not reach that bucket. Check the URL, keys and the bucket's CORS settings.";
+    return;
+  } finally {
+    submit.disabled = false;
+  }
+  const added = addLibrary(settingsStore, settings);
+  s3Form.reset();
+  $<HTMLDetailsElement>("add-library").open = false;
+  await useLibrary(added);
+};
+
 $("open-library").onclick = () => {
   dialog.close("library");
   saveName.value = store.yard.name;
-  libraryEntries = listYards();
-  libraryPage = 0;
-  libraryNote.textContent = "";
-  showLibrary();
+  fillLibrarySelect();
+  void reloadLibrary();
   library.showModal();
 };
 saveName.oninput = () => updateSaveLabel(libraryEntries);
-$("save-layout").onsubmit = (event) => {
+$("save-layout").onsubmit = async (event) => {
   event.preventDefault();
   const name = saveName.value.trim().slice(0, 48);
   if (!name) {
     libraryNote.textContent = "Enter a name for your yard.";
     return;
   }
+  const saveButton = $<HTMLButtonElement>("save-yard");
+  saveButton.disabled = true;
   try {
-    storeYard({ ...store.yard, name });
+    await yardLibrary.save({ ...store.yard, name });
   } catch {
-    libraryNote.textContent = "Could not save this yard. Try again.";
+    libraryNote.textContent =
+      "Could not save this yard to " + yardLibrary.settings.name + ". Try again.";
     return;
+  } finally {
+    saveButton.disabled = false;
   }
   store.dispatch({ type: "rename", name });
   library.close();
-  notify("Saved " + name + ".");
+  notify("Saved " + name + " to " + yardLibrary.settings.name + ".");
 };
 const speedButtons = document.querySelectorAll<HTMLButtonElement>("[data-speed]");
 document.querySelector('[data-speed="0"]')!.innerHTML = icon("pause");
@@ -911,7 +990,6 @@ for (const gesture of ["gesturestart", "gesturechange", "gestureend", "wheel"]) 
 }
 
 store.subscribe(({ yard, previous, edit }) => {
-  save();
   if (edit?.type === "replace") resetTrainEffects();
   if (!edit || edit.type === "replace" || edit.type === "resize") {
     hover = null;
