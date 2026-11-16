@@ -1,17 +1,11 @@
-import {
-  BACKGROUNDS,
-  COLORS,
-  GRID_SIZES,
-  STOCK,
-  STOCK_PALETTE,
-  TRACK,
-  TRACK_PALETTE,
-} from "./railway.ts";
-import type { Background, ColorName, GridSize, Point, StockType, TrackType } from "./railway.ts";
-import type { Edit, Refusal } from "./model/edits.ts";
+import { GRID_SIZES } from "./railway.ts";
+import { BACKGROUNDS, COLORS, STOCK, STOCK_PALETTE, TRACK, TRACK_PALETTE } from "./catalog.ts";
+import type { GridSize, Point } from "./railway.ts";
+import type { Background, ColorName, StockType, TrackType } from "./catalog.ts";
+import type { Refusal } from "./model/edits.ts";
 import { MAX_CARS } from "./model/train.ts";
-import type { Yard } from "./model/types.ts";
-import { blankYard, sampleLayout, scenicPresets } from "./presets.ts";
+import { blankSaved } from "./saves.ts";
+import type { SavedYard } from "./saves.ts";
 import {
   DEFAULT_LIBRARY,
   YardLibrary,
@@ -25,17 +19,14 @@ import {
 import type { LibrarySettings, NewLibrary, SettingsStore } from "./libraries.ts";
 import type {
   BoardFraction,
-  FromWorker,
   HeldPiece,
+  PageEdit,
   PalettePiece,
   PictureSpec,
-  Request,
-  RequestType,
-  Requests,
   Status,
-  ToWorker,
 } from "./engine/protocol.ts";
 import { TrainSound } from "./sound.ts";
+import { connectWorker } from "./worker-client.ts";
 
 /*
  * The page: DOM, pointer input, sound and yard libraries. The yard itself, the trains, undo and
@@ -109,54 +100,38 @@ let keyboardSquare: Point = [0, 0];
 let drag: Drag | null = null;
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 
-let libraryEntries: Yard[] = [];
+let libraryEntries: SavedYard[] = [];
 let libraryPage = 0;
 const yardsPerPage = 5;
 
 /* The yard worker ----------------------------------------------------------------------- */
 
-const worker = new Worker(new URL("./engine/worker.ts", import.meta.url), { type: "module" });
-const send = (message: ToWorker, transfer: Transferable[] = []) =>
-  worker.postMessage(message, transfer);
+const { send, request } = connectWorker(
+  new Worker(new URL("./engine/worker.ts", import.meta.url), { type: "module" }),
+  (event) => {
+    switch (event.type) {
+      case "status":
+        return applyStatus(event.status);
+      case "refused":
+        return refuse(event.reason);
+      case "rolling":
+        rolling = new Set(event.engines);
+        return sound.update(rolling, speed);
+      case "call":
+        return sound.call(event.sound);
+    }
+  },
+);
 // The worker draws the board canvas from here on.
 const screen = yardCanvas.transferControlToOffscreen();
 send({ type: "init", canvas: screen }, [screen]);
 
-const awaitedReplies = new Map<number, (value: never) => void>();
-let lastRequest = 0;
-/** Sends a request to the worker and resolves with its reply. */
-function request<T extends RequestType>(
-  type: T,
-  message: Requests[T]["message"],
-): Promise<Requests[T]["reply"]> {
-  const id = (lastRequest += 1);
-  send({ ...message, type, id } as Request);
-  return new Promise((resolve) => awaitedReplies.set(id, resolve));
-}
-
-worker.onmessage = ({ data }: MessageEvent<FromWorker>) => {
-  switch (data.type) {
-    case "reply":
-      awaitedReplies.get(data.id)?.(data.value as never);
-      awaitedReplies.delete(data.id);
-      return;
-    case "status":
-      return applyStatus(data.status);
-    case "refused":
-      return refuse(data.reason);
-    case "rolling":
-      rolling = new Set(data.engines);
-      return sound.update(rolling, speed);
-    case "call":
-      return sound.call(data.sound);
-  }
-};
-
-/** Applies an edit, telling the player if it was refused. */
-async function edit(change: Edit) {
-  const result = await request("edit", { edit: change });
-  if (!result.ok) refuse(result.reason);
-  return result;
+/** Applies an edit. The worker reports a refusal itself, so only a failure needs telling here. */
+function edit(change: PageEdit) {
+  return request("edit", { edit: change }).catch(() => {
+    notify("Something went wrong. Try again.");
+    return null;
+  });
 }
 
 /* Pictures ------------------------------------------------------------------------------ */
@@ -170,9 +145,13 @@ function pictureUrl(spec: PictureSpec) {
 const awaitedImages = new WeakMap<HTMLImageElement, Promise<string>>();
 function showImage(image: HTMLImageElement, url: Promise<string>) {
   awaitedImages.set(image, url);
-  void url.then((src) => {
-    if (awaitedImages.get(image) === url) image.src = src;
-  });
+  // A picture that fails to draw leaves the image blank.
+  url.then(
+    (src) => {
+      if (awaitedImages.get(image) === url) image.src = src;
+    },
+    () => {},
+  );
 }
 /** A decorative image that shows the picture once it is ready. */
 function picture(url: Promise<string>) {
@@ -215,7 +194,10 @@ function releaseThumbnails() {
     const url = awaitedImages.get(image);
     // Forget the picture first, so a thumbnail still being painted never loads a released URL.
     awaitedImages.delete(image);
-    void url?.then((src) => URL.revokeObjectURL(src));
+    url?.then(
+      (src) => URL.revokeObjectURL(src),
+      () => {},
+    );
   }
   thumbnails = [];
 }
@@ -238,19 +220,26 @@ const settingsStore: SettingsStore = (() => {
 })();
 let yardLibrary = new YardLibrary(activeLibrary(settingsStore));
 
+/** The built-in yards, asked for once. */
+let builtIns: Promise<readonly SavedYard[]> | undefined;
+const builtInYards = () => (builtIns ??= request("builtIns", {}));
+
+const byName = (yards: Iterable<SavedYard>) =>
+  [...yards].sort((a, b) => a.name.localeCompare(b.name));
+
 /** The built-in yards and those in the current library, which replace built-ins with the same name. */
 async function listYards() {
-  const yards = new Map<string, Yard>();
-  for (const yard of [sampleLayout(), ...scenicPresets(), ...(await yardLibrary.list())]) {
+  const yards = new Map<string, SavedYard>();
+  for (const yard of [...(await builtInYards()), ...(await yardLibrary.list())]) {
     yards.set(yardNameKey(yard.name), yard);
   }
-  return [...yards.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return byName(yards.values());
 }
 
 function showLibrary() {
   const start = libraryPage * yardsPerPage;
   const pages = Math.max(1, Math.ceil(libraryEntries.length / yardsPerPage));
-  const fresh = blankYard(currentSize(), background());
+  const fresh = blankSaved("New Layout", currentSize(), background());
   const entries = [fresh, ...libraryEntries.slice(start, start + yardsPerPage)];
   savedLayouts.replaceChildren();
   releaseThumbnails();
@@ -290,7 +279,7 @@ $("library-next").onclick = () => {
   showLibrary();
 };
 
-function updateSaveLabel(entries: Yard[]) {
+function updateSaveLabel(entries: readonly SavedYard[]) {
   const name = yardNameKey(saveName.value.trim());
   const exists = entries.some((entry) => yardNameKey(entry.name) === name);
   $("save-yard").textContent = exists ? "Update yard" : "Save yard";
@@ -304,7 +293,8 @@ const refusalMessages: Record<Refusal, string> = {
   "train-full": "A train can hold up to " + MAX_CARS + " cars.",
   "loop-too-short": "This loop is too short for another car.",
   "needs-more-track": "Add more track before coupling another car.",
-  "too-big-for-size": "This yard is too wide or tall for that size.",
+  // The layouts dialog explains this one next to the size buttons.
+  "too-big-for-size": "",
   "no-change": "",
 };
 
@@ -381,7 +371,7 @@ function resetGridNotice() {
 }
 
 function startBlank(size: GridSize) {
-  void edit({ type: "replace", yard: blankYard(size, background()) });
+  void edit({ type: "replace", yard: blankSaved("New Layout", size, background()) });
   dialog.close("grid-size");
 }
 
@@ -396,9 +386,9 @@ for (const size of GRID_SIZES) {
   button.onclick = async () => {
     resetGridNotice();
     if (size.cols === currentSize().cols) return;
-    const result = await request("edit", { edit: { type: "resize", size } });
-    if (result.ok) return dialog.close("grid-size");
-    if (result.reason !== "too-big-for-size") return;
+    const result = await edit({ type: "resize", size });
+    if (result?.ok) return dialog.close("grid-size");
+    if (result?.reason !== "too-big-for-size") return;
     pendingSize = size;
     gridNote.textContent = "This yard is too wide or tall for " + dimensions.textContent + ".";
     gridNote.hidden = false;
@@ -547,11 +537,16 @@ function beginDrag(event: PointerEvent, from: PalettePiece | BoardFraction) {
     piece: undefined,
     ghost: null,
   });
-  void request("grab", { from }).then((piece) => {
-    current.piece = piece;
-    // Start painting the drag picture now, so it is ready once the pointer moves.
-    if (piece) void piecePicture(piece);
-  });
+  request("grab", { from }).then(
+    (piece) => {
+      current.piece = piece;
+      // Start painting the drag picture now, so it is ready once the pointer moves.
+      if (piece) piecePicture(piece).catch(() => {});
+    },
+    () => {
+      current.piece = null;
+    },
+  );
 }
 
 function overRemove(event: PointerEvent) {
@@ -683,11 +678,13 @@ function useLibrary(settings: LibrarySettings) {
 async function reloadLibrary() {
   const load = (libraryLoad += 1);
   const current = yardLibrary;
-  libraryEntries = [sampleLayout(), ...scenicPresets()].sort((a, b) =>
-    a.name.localeCompare(b.name),
-  );
+  libraryEntries = [];
   libraryPage = 0;
   libraryNote.textContent = "Loading " + current.settings.name + "…";
+  showLibrary();
+  const builtIn = await builtInYards().catch(() => []);
+  if (load !== libraryLoad) return;
+  libraryEntries = byName(builtIn);
   showLibrary();
   try {
     const entries = await listYards();

@@ -1,6 +1,7 @@
 /** Geometry shared by the model: where cars sit along a path, and whether a path is valid. */
 import { isRoute, leadsInto, onward, pathKey, position, routesAt, segment } from "../railway.ts";
-import type { Board, Car, CarPosition, Segment, SegmentRef } from "../railway.ts";
+import type { Board, CarPosition, Segment, SegmentRef } from "../railway.ts";
+import type { Car } from "../catalog.ts";
 
 /** Distance between the centres of neighbouring cars. */
 export const CAR_GAP = 0.7;
@@ -18,6 +19,10 @@ export const toSegments = (path: readonly SegmentRef[]): Segment[] =>
 
 export const toRefs = (path: readonly SegmentRef[]): SegmentRef[] =>
   path.map(({ index, from, to }) => ({ index, from, to }));
+
+/** How far along a segment that ends the line a train stops: short of the end, but not before its middle. */
+export const deadEndStop = (path: Segment) =>
+  path.length - Math.min(END_CLEARANCE, path.length / 2);
 
 /** The track available behind the engine, from the start of the path to the engine. */
 export function lengthBehind(history: readonly Segment[], progress: number) {
@@ -117,11 +122,6 @@ export function extendTail(
   return extended;
 }
 
-/** Trims a valid path from the back so it covers exactly the cars. */
-export function trimToCars(history: readonly Segment[], progress: number, cars: number) {
-  return coveredPath(history, progress, cars);
-}
-
 /** Where a single car dropped at (x, y) within the square at `index` sits. */
 export function placeCar(
   board: Board,
@@ -153,5 +153,3 @@ export function closestApproach(a: readonly CarPosition[], b: readonly CarPositi
 /** Two trains overlap when any of their cars are within collision distance. */
 export const overlaps = (a: readonly CarPosition[], b: readonly CarPosition[]) =>
   closestApproach(a, b) < COLLISION;
-
-export const squaresOf = (path: readonly SegmentRef[]) => path.map((piece) => piece.index);

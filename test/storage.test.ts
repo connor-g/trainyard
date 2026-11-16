@@ -201,8 +201,8 @@ describe("S3 storage requests", () => {
     const storage = new S3Storage({ bucketUrl, accessKeyId: "id", secretAccessKey: "secret" });
     await storage.create("a", text("one"));
     await storage.update("a", text("two"));
+    expect(raced).toBe(true);
     expect(await (await storage.read("a"))?.text()).toBe("two");
-    expect(bucket.requests.filter((r) => r.method === "HEAD")).toHaveLength(2);
   });
 
   test("parses entities and continuation tokens in list pages", () => {

@@ -80,7 +80,14 @@ export function reconcile(yard: Yard, motion: Motion): Motion {
     place(train, { ...start, held: clashes(train, start) });
   }
   // Keep yard order, so trains are drawn and stepped in the same order as before.
-  return new Map(yard.trains.map((train) => [train.id, placed.get(train.id)!]));
+  return new Map(yard.trains.map((train) => [train.id, motionOf(placed, train.id)]));
+}
+
+/** A train's motion. Every train in the yard has one, so a missing entry is a bug, reported here. */
+export function motionOf(motion: Motion, id: TrainId): TrainMotion {
+  const current = motion.get(id);
+  if (!current) throw new Error(`Train ${id} has no motion`);
+  return current;
 }
 
 /** Compares positions by segment keys, progress and held, not by object identity. */

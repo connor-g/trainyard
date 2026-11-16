@@ -2,9 +2,11 @@
  * Messages between the page and the yard worker. The worker owns the yard, the trains, undo and
  * all drawing; the page owns the DOM, pointer input, sound and the yard libraries.
  */
-import type { Background, ColorName, StockType, Tile, TrackType } from "../railway.ts";
+import type { Tile } from "../railway.ts";
+import type { Background, ColorName, StockType, TrackType } from "../catalog.ts";
 import type { Edit, Refusal } from "../model/edits.ts";
-import type { Yard } from "../model/types.ts";
+import type { SavedYard } from "../saves.ts";
+import type { CallType } from "../sound.ts";
 
 /**
  * A point on the board as a fraction of its width and height, 0–1 on each axis. The page
@@ -36,18 +38,26 @@ export interface Status {
   readonly resetFocus: boolean;
 }
 
+/**
+ * An edit as the page sends it. Yards cross between page and worker in their saved shape, so
+ * train ids, which only the worker's yard uses, never leave the worker.
+ */
+export type PageEdit =
+  | Exclude<Edit, { readonly type: "replace" }>
+  | { readonly type: "replace"; readonly yard: SavedYard };
+
 export type EditOutcome = { readonly ok: true } | { readonly ok: false; readonly reason: Refusal };
 
 /** A picture for the page, drawn by the worker. */
 export type PictureSpec =
   | { readonly kind: "piece"; readonly piece: HeldPiece }
   | { readonly kind: "ground"; readonly background: Background }
-  | { readonly kind: "yard"; readonly yard: Yard };
+  | { readonly kind: "yard"; readonly yard: SavedYard };
 
 /** Messages that expect an answer, with what the answer holds. */
 export interface Requests {
-  /** Applies an edit to the yard. */
-  edit: { readonly message: { readonly edit: Edit }; readonly reply: EditOutcome };
+  /** Applies an edit to the yard. A refused edit is also reported with a `refused` message. */
+  edit: { readonly message: { readonly edit: PageEdit }; readonly reply: EditOutcome };
   /** Picks up a piece from the palette or the board; null for an empty square. */
   grab: {
     readonly message: { readonly from: PalettePiece | BoardFraction };
@@ -55,7 +65,9 @@ export interface Requests {
   };
   picture: { readonly message: { readonly spec: PictureSpec }; readonly reply: Blob };
   /** The current yard, to save it. */
-  yard: { readonly message: {}; readonly reply: Yard };
+  yard: { readonly message: {}; readonly reply: SavedYard };
+  /** The built-in yards. */
+  builtIns: { readonly message: {}; readonly reply: readonly SavedYard[] };
 }
 export type RequestType = keyof Requests;
 
@@ -94,9 +106,11 @@ export type FromWorker =
       readonly id: number;
       readonly value: Requests[RequestType]["reply"];
     }
+  /** A request failed in the worker; the page rejects it with this message. */
+  | { readonly type: "failed"; readonly id: number; readonly error: string }
   | { readonly type: "status"; readonly status: Status }
   | { readonly type: "refused"; readonly reason: Refusal }
   /** The engine types now rolling, for the rolling sound. */
   | { readonly type: "rolling"; readonly engines: readonly StockType[] }
   /** A horn or the station bell. */
-  | { readonly type: "call"; readonly sound: string };
+  | { readonly type: "call"; readonly sound: CallType };

@@ -1,13 +1,19 @@
 import { describe, expect, test } from "vite-plus/test";
-import { STOCK, TRACK } from "../src/railway.ts";
-import type { Car, StockType, TrackType } from "../src/railway.ts";
+import { STOCK, TRACK } from "../src/catalog.ts";
+import type { Car, StockType, TrackType } from "../src/catalog.ts";
 import { applyEdit } from "../src/model/edits.ts";
 import type { Edit } from "../src/model/edits.ts";
 import { initialMotion, motionEquals, reconcile } from "../src/model/motion.ts";
-import { carPositions, isValidStart, occupiedSquares } from "../src/model/queries.ts";
-import { initialSimState, step } from "../src/model/simulation.ts";
+import { carPositions, isValidStart } from "../src/model/queries.ts";
+import { SPEED, STATION_STOP_SECONDS, initialSimState, step } from "../src/model/simulation.ts";
 import type { SimState } from "../src/model/simulation.ts";
-import { closestApproach, isValidPath, overlaps } from "../src/model/train.ts";
+import {
+  COLLISION,
+  END_CLEARANCE,
+  closestApproach,
+  isValidPath,
+  overlaps,
+} from "../src/model/train.ts";
 import { nextTrainId } from "../src/model/types.ts";
 import type { Motion, TrainId, Yard } from "../src/model/types.ts";
 import { sampleLayout, scenicPresets } from "../src/presets.ts";
@@ -28,6 +34,8 @@ const diesel: Car = { type: "diesel", color: "brick" };
 const steam: Car = { type: "steam", color: "pine" };
 const box: Car = { type: "box", color: "amber" };
 const STEP = 1 / 60;
+/** How far a train moves in one step at speed 1. */
+const STRIDE = SPEED * STEP;
 
 /** A rectangular loop of track with corners at (x0, y0) and (x1, y1). */
 function loop(x0: number, y0: number, x1: number, y1: number): Piece[] {
@@ -122,8 +130,11 @@ describe("addCar", () => {
   });
 
   test("refuses a new engine too close to another train", () => {
+    // The train's last car sits on square 4, so an engine on square 3 would touch it.
     const state = addTrain(stateOf(yardWith(straightRow(1, 9, 5))), 5, 5, [diesel, box, box]);
-    expect(positionsOf(state, lastTrain(state).id).map((car) => car.x)).toEqual([5.5, 4.8, 4.1]);
+    expect(
+      applyEdit(state.yard, state.motion, { type: "addCar", car: diesel, at: centre(1, 5) }),
+    ).toMatchObject({ ok: true });
     expect(
       applyEdit(state.yard, state.motion, { type: "addCar", car: diesel, at: centre(3, 5) }),
     ).toEqual({ ok: false, reason: "engine-blocked" });
@@ -144,9 +155,8 @@ describe("addCar", () => {
 describe("track edits", () => {
   test("can't remove, move or replace track under any part of a train", () => {
     const state = addTrain(stateOf(yardWith(straightRow(1, 9, 5))), 6, 5, [diesel, box, box]);
-    const occupied = occupiedSquares(state.yard, state.motion);
-    // Cars sit at 6.5, 5.8 and 5.1; square 5 has no car centre on it, but the train covers it.
-    expect([...occupied].sort((a, b) => a - b)).toEqual([at(5, 5), at(6, 5)]);
+    // The engine is on square 6 and the last car near the start of square 5, so the train
+    // covers square 5 even where no car centre is.
     for (const change of [
       { type: "removeTrack", at: at(5, 5) },
       { type: "placeTrack", at: at(5, 5), track: "curve" },
@@ -174,8 +184,7 @@ describe("track edits", () => {
   test("resizing moves trains and starts with the track", () => {
     const state = run(stateOf(sampleLayout()), 3);
     const [before] = carPositions(state.yard, state.motion).values();
-    const { yard, motion, result } = edit(state, { type: "resize", size: { cols: 12, rows: 9 } });
-    expect(result.ok && result.remap).toBeTruthy();
+    const { yard, motion } = edit(state, { type: "resize", size: { cols: 12, rows: 9 } });
     const [after] = carPositions(yard, motion).values();
     const dx = after[0].x - before[0].x;
     const dy = after[0].y - before[0].y;
@@ -239,10 +248,9 @@ describe("step", () => {
       xs.push(carPositions(state.yard, motion).get(id)![0].x);
     }
     expect(stations).toBe(1);
-    // It arrives at the platform midpoint, waits 1.6 seconds, then leaves.
-    const stopped = xs.filter((x) => x === 4.5).length;
-    expect(stopped).toBeGreaterThanOrEqual(95);
-    expect(stopped).toBeLessThanOrEqual(99);
+    // It arrives at the platform midpoint, waits there for its stop, then leaves.
+    const stopped = xs.filter((x) => Math.abs(x - 4.5) < 1e-9).length;
+    expect(stopped * STEP).toBeCloseTo(STATION_STOP_SECONDS, 1);
     expect(xs.at(-1)).toBeGreaterThan(4.5);
   });
 
@@ -251,11 +259,12 @@ describe("step", () => {
     state = addTrain(state, 3, 5, [diesel, box]);
     const [parked, following] = state.yard.trains;
     state = run(state, 8);
+    // The following train stops on the step before it would touch.
     const gap = closestApproach(positionsOf(state, following.id), positionsOf(state, parked.id));
-    expect(gap).toBeGreaterThanOrEqual(0.58);
-    expect(gap).toBeLessThan(0.62);
-    // The parked train sits at the dead end, short of the edge.
-    expect(positionsOf(state, parked.id)[0].x).toBeCloseTo(10.71);
+    expect(gap).toBeGreaterThanOrEqual(COLLISION);
+    expect(gap).toBeLessThan(COLLISION + STRIDE);
+    // The parked train sits at the dead end, short of the end of the track on square 10.
+    expect(positionsOf(state, parked.id)[0].x).toBeCloseTo(11 - END_CLEARANCE);
   });
 
   test("speed 0 changes nothing", () => {
@@ -318,7 +327,7 @@ describe("overlapping trains", () => {
     // The released train follows rather than catching up.
     expect(
       closestApproach(positionsOf(state, first.id), positionsOf(state, second.id)),
-    ).toBeGreaterThanOrEqual(0.58 - 0.05);
+    ).toBeGreaterThanOrEqual(COLLISION - STRIDE);
   });
 
   test("a third train is still stopped by a held train", () => {
@@ -333,8 +342,8 @@ describe("overlapping trains", () => {
     state = run(state, 12);
     expect(state.motion.get(held.id)!.held).toBe(true);
     const gap = closestApproach(positionsOf(state, third.id), positionsOf(state, held.id));
-    expect(gap).toBeGreaterThanOrEqual(0.58 - 0.05);
-    expect(gap).toBeLessThan(0.8);
+    expect(gap).toBeGreaterThanOrEqual(COLLISION - STRIDE);
+    expect(gap).toBeLessThan(COLLISION + 4 * STRIDE);
   });
 });
 

@@ -1,11 +1,11 @@
-import { blankBoard, indexAt } from "../src/railway.ts";
-import type { Car, Tile, TrackType } from "../src/railway.ts";
+import { COLS, blankBoard, indexAt } from "../src/railway.ts";
+import type { Tile } from "../src/railway.ts";
+import type { Car, TrackType } from "../src/catalog.ts";
 import { applyEdit } from "../src/model/edits.ts";
 import type { Edit, EditResult } from "../src/model/edits.ts";
 import { initialMotion } from "../src/model/motion.ts";
 import type { Motion, Yard } from "../src/model/types.ts";
 
-export const COLS = 17;
 export const at = (x: number, y: number) => indexAt(x, y, COLS);
 
 export type Piece = readonly [x: number, y: number, type: TrackType, turn?: number];

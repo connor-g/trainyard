@@ -6,8 +6,9 @@ import type { BlobStorage } from "./storage/blob-storage.ts";
 import { BlobExistsError, BlobNotFoundError } from "./storage/blob-storage.ts";
 import { IdbStorage } from "./storage/idb-storage.ts";
 import { S3Storage } from "./storage/s3-storage.ts";
-import { fromSaved, toSaved } from "./saves.ts";
-import type { Yard } from "./model/types.ts";
+import { isRecord } from "./guards.ts";
+import { parseSaved } from "./saves.ts";
+import type { SavedYard } from "./saves.ts";
 
 export interface LocalLibrarySettings {
   readonly id: string;
@@ -58,19 +59,24 @@ export class YardLibrary {
     this.storage = storage;
   }
 
-  /** Lists the playable yards, skipping any blob that isn't one. */
-  async list(): Promise<Yard[]> {
+  /**
+   * Lists the playable yards, skipping any blob that isn't one. A yard whose name doesn't match its
+   * key is skipped too: saving or deleting it by name would reach a different blob.
+   */
+  async list(): Promise<SavedYard[]> {
     const keys = (await this.storage.list())
       .map((info) => info.key)
       .filter((key) => key.startsWith(YARD_PREFIX) && key.endsWith(YARD_SUFFIX));
     const yards = await Promise.all(keys.map((key) => this.#read(key)));
-    return yards.filter((yard): yard is Yard => yard !== null);
+    return yards.filter(
+      (yard, i): yard is SavedYard => yard !== null && yardBlobKey(yard.name) === keys[i],
+    );
   }
 
   /** Saves the yard under its name, replacing a saved yard with the same name. */
-  async save(yard: Yard): Promise<void> {
+  async save(yard: SavedYard): Promise<void> {
     const key = yardBlobKey(yard.name);
-    const data = new Blob([JSON.stringify(toSaved(yard))], { type: "application/json" });
+    const data = new Blob([JSON.stringify(yard)], { type: "application/json" });
     // Try the likelier write first, and fall back if another device got there in between.
     try {
       await this.storage.create(key, data);
@@ -89,10 +95,10 @@ export class YardLibrary {
     await this.storage.delete(yardBlobKey(name));
   }
 
-  async #read(key: string): Promise<Yard | null> {
+  async #read(key: string): Promise<SavedYard | null> {
     try {
       const blob = await this.storage.read(key);
-      return blob ? fromSaved(JSON.parse(await blob.text())) : null;
+      return blob ? parseSaved(JSON.parse(await blob.text())) : null;
     } catch (error) {
       if (error instanceof SyntaxError) return null;
       throw error;
@@ -114,9 +120,6 @@ export function openStorage(settings: LibrarySettings): BlobStorage {
     ...(keyPrefix && { keyPrefix }),
   });
 }
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
 
 const nonEmpty = (value: unknown): value is string => typeof value === "string" && value !== "";
 

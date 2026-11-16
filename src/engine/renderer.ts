@@ -22,7 +22,8 @@ import {
   steamPuff,
 } from "../drawing.ts";
 import type { SteamPuff } from "../drawing.ts";
-import type { Frame, Renderer, Scene } from "./engine.ts";
+import { fromSaved } from "../saves.ts";
+import type { Frame, Renderer, Scene } from "./scene.ts";
 import type { PictureSpec } from "./protocol.ts";
 
 type Context = OffscreenCanvasRenderingContext2D;
@@ -72,7 +73,7 @@ function drawPicture(ctx: Context, spec: PictureSpec, width: number, height: num
       ctx.scale(width / COLS, height / ROWS);
       return drawGround(ctx, spec.background, COLS, ROWS);
     case "yard":
-      return drawYardThumbnail(ctx, spec.yard, width, height);
+      return drawYardThumbnail(ctx, fromSaved(spec.yard), width, height);
     case "piece": {
       const { piece } = spec;
       ctx.translate(width / 2, height / 2);

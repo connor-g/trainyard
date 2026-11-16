@@ -1,27 +1,10 @@
-import {
-  cellAt,
-  fitTrack,
-  indexAt,
-  isEngine,
-  nextSegments,
-  onward,
-  pathKey,
-  rotateTrack,
-  routesAt,
-  segment,
-} from "../railway.ts";
-import type {
-  Background,
-  Board,
-  Car,
-  Grid,
-  GridSize,
-  Segment,
-  Tile,
-  TrackEdit,
-  TrackType,
-} from "../railway.ts";
-import { initialMotion } from "./motion.ts";
+import { cellAt, indexAt, nextSegments, onward, pathKey, routesAt, segment } from "../railway.ts";
+import { isEngine } from "../catalog.ts";
+import { fitTrack, rotateTrack } from "../track-fitting.ts";
+import type { Board, Grid, GridSize, Segment, Tile } from "../railway.ts";
+import type { Background, Car, TrackType } from "../catalog.ts";
+import type { TrackEdit } from "../track-fitting.ts";
+import { initialMotion, motionOf, remapMotion } from "./motion.ts";
 import { carAt, carPositions, isValidStart, occupiedSquares } from "./queries.ts";
 import {
   CAR_GAP,
@@ -31,6 +14,7 @@ import {
   carPositionsOn,
   closestApproach,
   coveredPath,
+  deadEndStop,
   extendTail,
   lengthBehind,
   overlaps,
@@ -108,14 +92,14 @@ function settle(yard: Yard, motion: Motion, remap?: (index: number) => number): 
   const { board } = yard;
   const nextMotion = new Map<TrainId, TrainMotion>();
   for (const train of yard.trains) {
-    const current = motion.get(train.id)!;
+    const current = motionOf(motion, train.id);
     const history = validSuffix(board, current.history);
     nextMotion.set(train.id, history === current.history ? current : { ...current, history });
   }
   const trains = yard.trains.map((train) =>
     isValidStart(board, train.cars.length, train.start)
       ? train
-      : { ...train, start: currentStart(nextMotion.get(train.id)!, train.cars.length) },
+      : { ...train, start: currentStart(motionOf(nextMotion, train.id), train.cars.length) },
   );
   const changed = trains.some((train, i) => train !== yard.trains[i]);
   return {
@@ -209,7 +193,7 @@ function pullForward(board: Board, history: readonly Segment[], progress: number
   for (let guard = 0; guard < 4 * MAX_CARS; guard += 1) {
     const last = pulled[pulled.length - 1];
     const next = onward(board, last);
-    const limit = next ? last.length : last.length - Math.min(END_CLEARANCE, last.length / 2);
+    const limit = next ? last.length : deadEndStop(last);
     if (distance <= limit) return { history: pulled, progress: distance };
     if (!next) return null;
     distance -= last.length;
@@ -284,7 +268,7 @@ function addCar(yard: Yard, motion: Motion, car: Car, at: BoardPoint): EditResul
   if (trainId == null) return refuse("needs-engine");
   const index = yard.trains.findIndex((train) => train.id === trainId);
   const train = yard.trains[index];
-  const current = motion.get(trainId)!;
+  const current = motionOf(motion, trainId);
   // A tender dropped on a steam engine goes directly behind it.
   const insertAt =
     car.type === "tender" && hit && train.cars[hit.carIndex]?.type === "steam"
@@ -340,7 +324,7 @@ function resize(yard: Yard, motion: Motion, { cols, rows }: GridSize): EditResul
   const used = new Set<number>();
   old.grid.forEach((tile, index) => tile && used.add(index));
   for (const train of yard.trains) {
-    const current = motion.get(train.id)!;
+    const current = motionOf(motion, train.id);
     for (const piece of coveredPath(current.history, current.progress, train.cars.length))
       used.add(piece.index);
     for (const piece of train.start.path) used.add(piece.index);
@@ -375,14 +359,8 @@ function resize(yard: Yard, motion: Motion, { cols, rows }: GridSize): EditResul
   old.grid.forEach((tile, index) => {
     if (tile) grid[move(index)] = tile;
   });
-  const nextMotion = new Map<TrainId, TrainMotion>();
-  for (const [id, current] of motion) {
-    const history = current.history.map((piece) => ({ ...piece, index: move(piece.index) }));
-    nextMotion.set(id, {
-      ...current,
-      history: history.slice(history.findLastIndex((piece) => piece.index === -1) + 1),
-    });
-  }
+  // Everything in use fits the new board, so every train keeps its position.
+  const nextMotion = remapMotion(motion, move);
   const trains = yard.trains.map((train) => ({
     ...train,
     start: {

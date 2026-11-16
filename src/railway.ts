@@ -1,3 +1,6 @@
+import { TRACK } from "./catalog.ts";
+import type { Car, TrackType } from "./catalog.ts";
+
 /** A port is one of the four tile edges (0 = top, clockwise), or -1 for a dead end. */
 export type Port = number;
 export type Point = [x: number, y: number];
@@ -21,12 +24,6 @@ export interface Board {
   readonly rows: number;
 }
 
-export interface Car {
-  readonly type: StockType;
-  readonly color: ColorName;
-}
-
-/** One route across one square, entering at `from` and leaving at `to`. */
 export interface SegmentRef {
   readonly index: number;
   readonly from: Port;
@@ -81,110 +78,6 @@ const STEPS: Point[] = [
 export const OPPOSITE: readonly Port[] = [2, 3, 0, 1];
 const QUARTER_TURN = Math.PI / 2;
 
-/** Catalogs list entries in palette order; `inPalette` entries appear in the palette. */
-interface TrackInfo {
-  name: string;
-  paths: [Port, Port][];
-  inPalette: boolean;
-}
-export const TRACK = {
-  straight: { name: "Straight", paths: [[3, 1]], inPalette: true },
-  curve: { name: "Curve", paths: [[1, 2]], inPalette: true },
-  cross: {
-    name: "Crossing",
-    paths: [
-      [3, 1],
-      [0, 2],
-    ],
-    inPalette: true,
-  },
-  wye: {
-    name: "Y-switch",
-    paths: [
-      [3, 0],
-      [3, 2],
-    ],
-    inPalette: true,
-  },
-  left: {
-    name: "Left switch",
-    paths: [
-      [3, 1],
-      [3, 0],
-    ],
-    inPalette: true,
-  },
-  right: {
-    name: "Right switch",
-    paths: [
-      [3, 1],
-      [3, 2],
-    ],
-    inPalette: true,
-  },
-  station: { name: "Station", paths: [[3, 1]], inPalette: true },
-  buffer: { name: "Buffer stop", paths: [[3, -1]], inPalette: true },
-  bridge: { name: "Bridge", paths: [[3, 1]], inPalette: true },
-  tunnel: { name: "Tunnel", paths: [[3, 1]], inPalette: true },
-} satisfies Record<string, TrackInfo>;
-export type TrackType = keyof typeof TRACK;
-
-interface StockInfo {
-  name: string;
-  engine?: boolean;
-  inPalette: boolean;
-}
-export const STOCK = {
-  steam: { name: "Steam engine", engine: true, inPalette: true },
-  diesel: { name: "Diesel engine", engine: true, inPalette: true },
-  electric: { name: "Electric engine", engine: true, inPalette: true },
-  tender: { name: "Coal tender", inPalette: true },
-  hopper: { name: "Hopper", inPalette: true },
-  log: { name: "Log car", inPalette: true },
-  tank: { name: "Tank car", inPalette: true },
-  box: { name: "Boxcar", inPalette: true },
-  flat: { name: "Flatcar", inPalette: true },
-  crane: { name: "Crane car", inPalette: true },
-  passenger: { name: "Passenger coach", inPalette: true },
-  caboose: { name: "Caboose", inPalette: true },
-} satisfies Record<string, StockInfo>;
-export type StockType = keyof typeof STOCK;
-
-export const isEngine = (type: StockType): boolean => (STOCK[type] as StockInfo).engine === true;
-
-const catalogKeys = <T extends string>(catalog: Record<T, { inPalette: boolean }>) =>
-  (Object.keys(catalog) as T[]).filter((key) => catalog[key].inPalette);
-export const TRACK_PALETTE: TrackType[] = catalogKeys(TRACK);
-export const STOCK_PALETTE: StockType[] = catalogKeys(STOCK);
-
-export const BACKGROUNDS = {
-  plain: "Grass",
-  meadow: "Meadow",
-  coast: "Coast",
-  mountain: "Mountains",
-  desert: "Desert",
-} satisfies Record<string, string>;
-export type Background = keyof typeof BACKGROUNDS;
-
-export function isBackground(value: unknown): value is Background {
-  return typeof value === "string" && Object.hasOwn(BACKGROUNDS, value);
-}
-export const COLORS = {
-  brick: ["Brick red", "#bb493b"],
-  coral: ["Coral", "#dd765c"],
-  amber: ["Golden yellow", "#d59832"],
-  mint: ["Mint", "#7fa996"],
-  pine: ["Pine green", "#427454"],
-  teal: ["Teal", "#3f8581"],
-  ocean: ["Ocean blue", "#3c719a"],
-  violet: ["Plum", "#825878"],
-  pink: ["Rose", "#bd6b8c"],
-  cream: ["Cream", "#ede0bb"],
-  brown: ["Chestnut", "#8b5b3d"],
-  slate: ["Slate", "#535c66"],
-} satisfies Record<string, [name: string, hex: string]>;
-export type ColorName = keyof typeof COLORS;
-
 export const indexAt = (x: number, y: number, cols: number) => y * cols + x;
 export const cellAt = (index: number, cols: number): Point => [
   index % cols,
@@ -212,78 +105,6 @@ export function neighbor({ cols, rows }: Board, index: number, port: Port) {
   const nx = x + dx;
   const ny = y + dy;
   return nx < 0 || ny < 0 || nx >= cols || ny >= rows ? -1 : indexAt(nx, ny, cols);
-}
-
-function orientations(type: TrackType): Tile[] {
-  const paths: [Port, Port][] = TRACK[type].paths;
-  const [first, second] = paths[0];
-  const straight = paths.length === 1 && OPPOSITE[first] === second;
-  const turns = straight ? [0, 1] : type === "cross" ? [0] : [0, 1, 2, 3];
-  return turns.map((turn) => ({ type, turn, branch: false }));
-}
-
-function connectedPorts(board: Board, index: number, tile: Orientation) {
-  return ENDS.flatMap((_, port) =>
-    hasPort(tile, port) && hasPort(board.grid[neighbor(board, index, port)], OPPOSITE[port])
-      ? [port]
-      : [],
-  );
-}
-
-export type TrackEdit = [index: number, tile: Tile];
-
-export function fitTrack(
-  board: Board,
-  index: number,
-  type: TrackType,
-  occupied: ReadonlySet<number> = new Set(),
-  original: Tile | null = null,
-): TrackEdit[] {
-  const adjacent = ENDS.map((_, port): { index: number; tile?: Tile | null; rotated?: Tile } => {
-    const nextIndex = neighbor(board, index, port);
-    const tile = board.grid[nextIndex];
-    const entry = OPPOSITE[port];
-    if (!tile || hasPort(tile, entry)) return { index: nextIndex, tile };
-    if (occupied.has(nextIndex) || connectedPorts(board, nextIndex, tile).length)
-      return { index: nextIndex };
-    const rotated = orientations(tile.type).find((option) => hasPort(option, entry));
-    return { index: nextIndex, rotated };
-  });
-  let bestScore = -1;
-  let best: TrackEdit[] = [];
-  for (const orientation of orientations(type)) {
-    const tile = original ? { ...original, turn: orientation.turn } : orientation;
-    const edits: TrackEdit[] = [[index, tile]];
-    let score = 0;
-    adjacent.forEach((next, port) => {
-      if (!hasPort(tile, port)) return;
-      if (next.tile) score += 5;
-      if (next.rotated) {
-        score += 1;
-        edits.push([next.index, next.rotated]);
-      }
-    });
-    if (score > bestScore || (score === bestScore && tile.turn === original?.turn)) {
-      bestScore = score;
-      best = edits;
-    }
-  }
-  return best;
-}
-
-export function rotateTrack(board: Board, index: number): Tile | null {
-  const tile = board.grid[index];
-  if (!tile) return null;
-  const options = orientations(tile.type);
-  const fullyConnected = isSwitch(tile) && connectedPorts(board, index, tile).length === 3;
-  const connected = options.filter(
-    (option) => connectedPorts(board, index, option).length >= (fullyConnected ? 3 : 1),
-  );
-  const valid = connected.length ? connected : options;
-  const turn = tile.turn % options.length;
-  const next = valid.find((option) => option.turn > turn) ?? valid[0];
-  if (next.turn !== turn) return { ...tile, turn: next.turn };
-  return fullyConnected ? { ...tile, branch: !tile.branch } : null;
 }
 
 export function switchBranch(board: Board, index: number, tile: Tile) {

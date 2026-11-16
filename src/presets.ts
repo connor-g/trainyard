@@ -1,14 +1,6 @@
-import { GRID_SIZES, blankBoard, indexAt, trackPaths } from "./railway.ts";
-import type {
-  Background,
-  Board,
-  ColorName,
-  GridSize,
-  Point,
-  StockType,
-  Tile,
-  TrackType,
-} from "./railway.ts";
+import { blankBoard, indexAt, trackPaths } from "./railway.ts";
+import type { Board, Point, Tile } from "./railway.ts";
+import type { Background, ColorName, StockType, TrackType } from "./catalog.ts";
 import { MAX_CARS, extendTail, isValidPath, placeCar, toRefs } from "./model/train.ts";
 import { nextTrainId } from "./model/types.ts";
 import type { TrainSpec, Yard } from "./model/types.ts";
@@ -268,8 +260,4 @@ export function scenicPresets(): Yard[] {
       ],
     ),
   ];
-}
-
-export function blankYard(size: GridSize = GRID_SIZES[0], background: Background = "plain"): Yard {
-  return { name: "New Layout", board: blankBoard(size), background, trains: [] };
 }
