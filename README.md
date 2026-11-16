@@ -45,6 +45,7 @@ The app's source is in `src/`, with `index.html` at the repository root. Files i
 - `src/model/` is the game model, with no state of its own. A `Yard` is what the player built (the board, background and each train's cars and start path) and `Motion` is where the trains are right now. Both are immutable: their types are deeply `readonly`, so the compiler rejects changes in place. `applyEdit` turns an edit into a new yard and motion, and `step` advances the trains.
 - `src/store.ts` holds the current yard, the motion and an in-memory undo stack. Undo reverses one edit and never rewinds train movement.
 - `src/saves.ts` reads and writes saved yards in local storage.
+- `src/storage/` is a blob store: `BlobStorage` (list, create, read, update, delete) with an IndexedDB implementation (`idb-storage.ts`, using [idb](https://github.com/jakearchibald/idb)) and an S3-compatible one (`s3-storage.ts`, signing requests with [aws4fetch](https://github.com/mhart/aws4fetch)). Neither is wired into the app yet. The S3 tests run against an in-memory bucket served by [MSW](https://mswjs.io/).
 - `src/yard.ts` is the page: input, rendering, sound and dialogs.
 
 TypeScript is set up with strict typing, erasable syntax only, and isolated modules, targeting ES2025 to match the latest Safari. All source files are TypeScript (`.ts`).

@@ -1,0 +1,153 @@
+/** Stores blobs in an S3-compatible bucket (AWS S3, Cloudflare R2, MinIO, ...) with signed requests. */
+import { AwsClient } from "aws4fetch";
+import { BlobExistsError, BlobNotFoundError, assertKey } from "./blob-storage.ts";
+import type { BlobInfo, BlobStorage } from "./blob-storage.ts";
+
+export interface S3StorageOptions {
+  /**
+   * The bucket's base URL, path-style or virtual-hosted, such as
+   * `https://my-bucket.s3.us-east-1.amazonaws.com` or `https://<account>.r2.cloudflarestorage.com/my-bucket`.
+   */
+  readonly bucketUrl: string;
+  readonly accessKeyId: string;
+  readonly secretAccessKey: string;
+  readonly sessionToken?: string;
+  /** Defaults to the region in the URL; R2 uses "auto". */
+  readonly region?: string;
+  /** Prepended to every key, so several stores can share a bucket. */
+  readonly keyPrefix?: string;
+}
+
+export class S3StorageError extends Error {
+  readonly status: number;
+  constructor(action: string, response: Response) {
+    super(`S3 ${action} failed with ${response.status} ${response.statusText}`);
+    this.name = "S3StorageError";
+    this.status = response.status;
+  }
+}
+
+/** How many times `update` retries when the blob changes between reading its ETag and writing. */
+const UPDATE_ATTEMPTS = 3;
+
+const XML_ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
+
+const decodeXml = (text: string) =>
+  text.replace(/&(#x[0-9a-f]+|#\d+|\w+);/gi, (match, entity: string) => {
+    if (entity[0] !== "#") return XML_ENTITIES[entity] ?? match;
+    const code =
+      entity[1] === "x" || entity[1] === "X"
+        ? parseInt(entity.slice(2), 16)
+        : parseInt(entity.slice(1), 10);
+    return String.fromCodePoint(code);
+  });
+
+const xmlValue = (xml: string, tag: string) => {
+  const match = new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`).exec(xml);
+  return match ? decodeXml(match[1]) : undefined;
+};
+
+/** Reads one page of a ListObjectsV2 response. The format is fixed and simple enough not to need a full XML parser. */
+export function parseListPage(xml: string): {
+  objects: { key: string; size: number; lastModified: number }[];
+  nextToken?: string;
+} {
+  const objects = [...xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)].map(([, contents]) => ({
+    key: xmlValue(contents, "Key") ?? "",
+    size: Number(xmlValue(contents, "Size") ?? 0),
+    lastModified: Date.parse(xmlValue(contents, "LastModified") ?? ""),
+  }));
+  const truncated = xmlValue(xml, "IsTruncated") === "true";
+  const nextToken = truncated ? xmlValue(xml, "NextContinuationToken") : undefined;
+  return nextToken ? { objects, nextToken } : { objects };
+}
+
+export class S3Storage implements BlobStorage {
+  readonly #base: string;
+  readonly #keyPrefix: string;
+  readonly #client: AwsClient;
+
+  constructor(options: S3StorageOptions) {
+    this.#base = options.bucketUrl.replace(/\/+$/, "");
+    this.#keyPrefix = options.keyPrefix ?? "";
+    this.#client = new AwsClient({
+      accessKeyId: options.accessKeyId,
+      secretAccessKey: options.secretAccessKey,
+      service: "s3",
+      ...(options.sessionToken && { sessionToken: options.sessionToken }),
+      ...(options.region && { region: options.region }),
+    });
+  }
+
+  async list(): Promise<BlobInfo[]> {
+    const results: BlobInfo[] = [];
+    let token: string | undefined;
+    do {
+      const url = new URL(`${this.#base}/`);
+      url.searchParams.set("list-type", "2");
+      url.searchParams.set("prefix", this.#keyPrefix);
+      if (token) url.searchParams.set("continuation-token", token);
+      const response = await this.#client.fetch(url);
+      if (!response.ok) throw new S3StorageError("list", response);
+      const page = parseListPage(await response.text());
+      for (const object of page.objects) {
+        results.push({ ...object, key: object.key.slice(this.#keyPrefix.length) });
+      }
+      token = page.nextToken;
+    } while (token);
+    return results;
+  }
+
+  async create(key: string, data: Blob): Promise<void> {
+    assertKey(key);
+    // A conditional write, so two creates of the same key can't both succeed.
+    const response = await this.#put(key, data, { "If-None-Match": "*" });
+    if (response.status === 412) throw new BlobExistsError(key);
+    if (!response.ok) throw new S3StorageError("create", response);
+  }
+
+  async read(key: string): Promise<Blob | null> {
+    assertKey(key);
+    const response = await this.#client.fetch(this.#objectUrl(key));
+    if (response.status === 404) return null;
+    if (!response.ok) throw new S3StorageError("read", response);
+    return response.blob();
+  }
+
+  async update(key: string, data: Blob): Promise<void> {
+    assertKey(key);
+    for (let attempt = 0; attempt < UPDATE_ATTEMPTS; attempt += 1) {
+      const head = await this.#client.fetch(this.#objectUrl(key), { method: "HEAD" });
+      if (head.status === 404) throw new BlobNotFoundError(key);
+      if (!head.ok) throw new S3StorageError("update", head);
+      const etag = head.headers.get("ETag");
+      // Write only over the version just seen, so a concurrent delete isn't silently undone.
+      const response = await this.#put(key, data, etag ? { "If-Match": etag } : {});
+      if (response.status === 404) throw new BlobNotFoundError(key);
+      if (response.status === 412) continue;
+      if (!response.ok) throw new S3StorageError("update", response);
+      return;
+    }
+    throw new Error(`Gave up updating "${key}" after it kept changing`);
+  }
+
+  async delete(key: string): Promise<void> {
+    assertKey(key);
+    const response = await this.#client.fetch(this.#objectUrl(key), { method: "DELETE" });
+    if (!response.ok && response.status !== 404) throw new S3StorageError("delete", response);
+  }
+
+  #objectUrl(key: string): string {
+    const path = (this.#keyPrefix + key).split("/").map(encodeURIComponent).join("/");
+    return `${this.#base}/${path}`;
+  }
+
+  async #put(key: string, data: Blob, condition: Record<string, string>): Promise<Response> {
+    return this.#client.fetch(this.#objectUrl(key), {
+      method: "PUT",
+      // aws4fetch signs the payload hash, which needs the bytes up front.
+      body: await data.arrayBuffer(),
+      headers: { "Content-Type": data.type || "application/octet-stream", ...condition },
+    });
+  }
+}
