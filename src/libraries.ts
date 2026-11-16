@@ -140,8 +140,6 @@ export type SettingsStore = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 const LIBRARIES_KEY = "rail-yard-libraries-v1";
 const ACTIVE_KEY = "rail-yard-active-library";
-/** Where saved yards lived before libraries; moved into the default library on first use. */
-export const LEGACY_SAVES_KEY = "rail-yard-saved-layouts-v2";
 
 /** Reads the libraries, always with the default first. Unreadable entries are dropped. */
 export function readLibraries(settings: SettingsStore): LibrarySettings[] {
@@ -190,30 +188,4 @@ export function removeLibrary(settings: SettingsStore, id: string) {
     readLibraries(settings).filter((library) => library.id !== id),
   );
   if (settings.getItem(ACTIVE_KEY) === id) settings.removeItem(ACTIVE_KEY);
-}
-
-/**
- * Moves yards saved before libraries existed into the given library, then forgets the old list.
- * A yard already in the library under the same name is kept; the old copy is dropped.
- */
-export async function migrateLegacySaves(settings: SettingsStore, library: YardLibrary) {
-  const raw = settings.getItem(LEGACY_SAVES_KEY);
-  if (raw === null) return;
-  let entries: unknown = [];
-  try {
-    entries = JSON.parse(raw);
-  } catch {}
-  for (const entry of Array.isArray(entries) ? entries : []) {
-    const yard = fromSaved(entry);
-    if (!yard || !yard.name.trim()) continue;
-    try {
-      await library.storage.create(
-        yardBlobKey(yard.name),
-        new Blob([JSON.stringify(toSaved(yard))], { type: "application/json" }),
-      );
-    } catch (error) {
-      if (!(error instanceof BlobExistsError)) throw error;
-    }
-  }
-  settings.removeItem(LEGACY_SAVES_KEY);
 }

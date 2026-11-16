@@ -2,11 +2,9 @@ import "fake-indexeddb/auto";
 import { describe, expect, test } from "vite-plus/test";
 import {
   DEFAULT_LIBRARY,
-  LEGACY_SAVES_KEY,
   YardLibrary,
   activeLibrary,
   addLibrary,
-  migrateLegacySaves,
   openStorage,
   readLibraries,
   removeLibrary,
@@ -17,7 +15,7 @@ import type { SettingsStore } from "../src/libraries.ts";
 import { toSaved } from "../src/saves.ts";
 import { IdbStorage } from "../src/storage/idb-storage.ts";
 import { S3Storage } from "../src/storage/s3-storage.ts";
-import { sampleLayout, scenicPresets } from "../src/presets.ts";
+import { sampleLayout } from "../src/presets.ts";
 
 function memorySettings(initial: Record<string, string> = {}): SettingsStore & {
   values: Map<string, string>;
@@ -108,22 +106,5 @@ describe("yard library", () => {
     await library.storage.create("notes.txt", new Blob(["hello"]));
     await library.save(sampleLayout());
     expect((await library.list()).map((yard) => yard.name)).toEqual([sampleLayout().name]);
-  });
-
-  test("moves yards saved before libraries into the library once", async () => {
-    const library = localLibrary();
-    const [first, second] = scenicPresets();
-    await library.save({ ...second, background: "desert" });
-    const settings = memorySettings({
-      [LEGACY_SAVES_KEY]: JSON.stringify([toSaved(first), toSaved(second), { junk: true }]),
-    });
-    await migrateLegacySaves(settings, library);
-    expect(settings.values.has(LEGACY_SAVES_KEY)).toBe(false);
-    const listed = await library.list();
-    expect(listed.map((yard) => yard.name).sort()).toEqual([first.name, second.name].sort());
-    // The copy already in the library wins over the old one.
-    expect(listed.find((yard) => yard.name === second.name)?.background).toBe("desert");
-    await migrateLegacySaves(settings, library);
-    expect(await library.list()).toHaveLength(2);
   });
 });

@@ -31,13 +31,11 @@ import { MAX_CARS, carPositionsOn, placeCar } from "./model/train.ts";
 import type { BoardPoint, TrainId, Yard } from "./model/types.ts";
 import { createStore } from "./store.ts";
 import { blankYard, sampleLayout, scenicPresets } from "./presets.ts";
-import { fromSaved, toSaved } from "./saves.ts";
 import {
   DEFAULT_LIBRARY,
   YardLibrary,
   activeLibrary,
   addLibrary,
-  migrateLegacySaves,
   readLibraries,
   removeLibrary,
   setActiveLibrary,
@@ -161,15 +159,13 @@ const library = $<HTMLDialogElement>("layout-library");
 const saveName = $<HTMLInputElement>("save-name");
 const savedLayouts = $("saved-layouts");
 const libraryNote = $("library-note");
-// Version 1 saves (with current positions) are left untouched under their own keys for migration.
-const saveKey = "rail-yard-v2";
 const soundKey = "rail-yard-muted";
 const sound = new TrainSound();
 try {
   sound.enabled = localStorage.getItem(soundKey) !== "yes";
 } catch {}
 const soundButton = $("sound");
-const store = createStore(load());
+const store = createStore(sampleLayout());
 let { cols, rows } = store.yard.board;
 let paletteKind: PaletteKind = "track";
 let color: ColorName = "brick";
@@ -187,17 +183,6 @@ let movingTrains: ReadonlySet<TrainId> = new Set();
 let activeCrane: { trainId: TrainId; carIndex: number; start: number } | null = null;
 const carKey = (trainId: TrainId, carIndex: number) => trainId + ":" + carIndex;
 const craneSwingDuration = 950;
-
-function load(): Yard {
-  try {
-    const raw = localStorage.getItem(saveKey);
-    const saved = raw ? fromSaved(JSON.parse(raw)) : null;
-    if (saved) return saved;
-  } catch {
-    // A blocked or unavailable storage area still allows play for this visit.
-  }
-  return sampleLayout();
-}
 
 let libraryEntries: Yard[] = [];
 let libraryPage = 0;
@@ -218,15 +203,9 @@ const settingsStore: SettingsStore = (() => {
   }
 })();
 let yardLibrary = new YardLibrary(activeLibrary(settingsStore));
-const defaultLibrary =
-  yardLibrary.settings.id === DEFAULT_LIBRARY.id ? yardLibrary : new YardLibrary(DEFAULT_LIBRARY);
-const migrated = migrateLegacySaves(settingsStore, defaultLibrary).catch(() => {
-  // Leave the old list in place to try again on the next visit.
-});
 
 /** The built-in yards and those in the current library, which replace built-ins with the same name. */
 async function listYards() {
-  await migrated;
   const yards = new Map<string, Yard>();
   for (const yard of [sampleLayout(), ...scenicPresets(), ...(await yardLibrary.list())]) {
     yards.set(yardNameKey(yard.name), yard);
@@ -307,14 +286,6 @@ function updateSaveLabel(entries: Yard[]) {
   $("save-yard").textContent = exists ? "Update yard" : "Save yard";
 }
 
-/** Saves the yard as built, with every train at its start; train movement never needs saving. */
-function save() {
-  try {
-    localStorage.setItem(saveKey, JSON.stringify(toSaved(store.yard)));
-  } catch {
-    // Keep the current layout usable in memory.
-  }
-}
 const refusalMessages: Record<Refusal, string> = {
   "square-occupied": "Wait for the train to clear this square.",
   "needs-track": "Drop the car on a track piece.",
@@ -883,7 +854,7 @@ function fillLibrarySelect() {
 
 function useLibrary(settings: LibrarySettings) {
   setActiveLibrary(settingsStore, settings.id);
-  yardLibrary = settings.id === DEFAULT_LIBRARY.id ? defaultLibrary : new YardLibrary(settings);
+  yardLibrary = new YardLibrary(settings);
   fillLibrarySelect();
   return reloadLibrary();
 }
@@ -974,7 +945,6 @@ $("save-layout").onsubmit = async (event) => {
   const saveButton = $<HTMLButtonElement>("save-yard");
   saveButton.disabled = true;
   try {
-    await migrated;
     await yardLibrary.save({ ...store.yard, name });
   } catch {
     libraryNote.textContent =
@@ -1020,7 +990,6 @@ for (const gesture of ["gesturestart", "gesturechange", "gestureend", "wheel"]) 
 }
 
 store.subscribe(({ yard, previous, edit }) => {
-  save();
   if (edit?.type === "replace") resetTrainEffects();
   if (!edit || edit.type === "replace" || edit.type === "resize") {
     hover = null;
