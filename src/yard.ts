@@ -21,7 +21,21 @@ import {
   carPositions,
   blankLayout,
   sampleLayout,
-} from "./railway.mjs";
+} from "./railway.ts";
+import type {
+  Car,
+  CarPosition,
+  ColorName,
+  Grid,
+  GridSize,
+  Layout,
+  Point,
+  StockType,
+  Tile,
+  TrackEdit,
+  TrackType,
+  Train,
+} from "./railway.ts";
 import {
   BACKGROUNDS,
   drawGround,
@@ -31,8 +45,72 @@ import {
   underTunnelRoof,
   steamPuff,
   drawSteamPuff,
-} from "./drawing.mjs";
-import { TrainSound } from "./sound.mjs";
+} from "./drawing.ts";
+import type { Background, SteamPuff } from "./drawing.ts";
+import { TrainSound } from "./sound.ts";
+
+type PaletteKind = "track" | "cars";
+
+/** A grid square under the pointer or keyboard focus, with the exact point inside it. */
+interface Cell {
+  x: number;
+  y: number;
+  column: number;
+  row: number;
+  index: number;
+}
+
+interface TrackPiece {
+  kind: "track";
+  type: TrackType;
+  color: ColorName;
+  index?: undefined;
+  tile?: undefined;
+  train?: undefined;
+}
+interface CarPiece {
+  kind: "cars";
+  type: StockType;
+  color: ColorName;
+  index?: undefined;
+  tile?: undefined;
+  train?: undefined;
+}
+interface BoardCar extends Car {
+  kind: "board";
+  index: number;
+  train: Train;
+  carIndex: number;
+  tile?: undefined;
+}
+interface BoardTile {
+  kind: "board";
+  index: number;
+  tile: Tile;
+  type: TrackType;
+  color?: undefined;
+  train?: undefined;
+}
+interface BoardSquare {
+  kind: "board";
+  index: number;
+  tile: null;
+  type?: undefined;
+  color?: undefined;
+  train?: undefined;
+}
+type BoardItem = BoardCar | BoardTile | BoardSquare;
+type Item = TrackPiece | CarPiece | BoardItem;
+type TrackMove = TrackPiece | BoardTile;
+type Drag = Item & {
+  id: number;
+  x: number;
+  y: number;
+  ghost: HTMLDivElement | null;
+  moved: boolean;
+};
+type GridEdit = [index: number, tile: Tile | null];
+type Puff = SteamPuff & { start: number; drift: number };
 
 const symbols = {
   layout: '<path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Zm6-3v15m6-12v15"/>',
@@ -47,7 +125,8 @@ const symbols = {
   sound: '<path d="M11 4 6 8H3v8h3l5 4V4Zm4 5a4 4 0 0 1 0 6m2-9a8 8 0 0 1 0 12"/>',
   mute: '<path d="M11 4 6 8H3v8h3l5 4V4Zm5 5 5 6m0-6-5 6"/>',
 };
-function icon(name) {
+type Symbol = keyof typeof symbols;
+function icon(name: Symbol) {
   return (
     '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
     symbols[name] +
@@ -55,19 +134,26 @@ function icon(name) {
   );
 }
 
-const $ = (id) => document.getElementById(id);
+// The page markup in index.html provides every element the app looks up.
+const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+const children = <T extends HTMLElement = HTMLElement>(parent: Element) =>
+  Array.from(parent.children) as T[];
+const context2d = (canvas: HTMLCanvasElement) => canvas.getContext("2d")!;
 const palette = $("palette");
 const removeZone = $("remove");
-const rails = $("rails");
+const rails = $<HTMLCanvasElement>("rails");
 const frame = $("map-frame");
 const map = $("map");
-const canvasLayers = [$("ground"), rails, $("rolling-stock"), $("tunnel-roofs")];
-const [groundContext, railsContext, stockContext, roofContext] = canvasLayers.map((canvas) =>
-  canvas.getContext("2d"),
-);
-const dialog = $("layout-dialog");
-const library = $("layout-library");
-const saveName = $("save-name");
+const canvasLayers = [
+  $<HTMLCanvasElement>("ground"),
+  rails,
+  $<HTMLCanvasElement>("rolling-stock"),
+  $<HTMLCanvasElement>("tunnel-roofs"),
+];
+const [groundContext, railsContext, stockContext, roofContext] = canvasLayers.map(context2d);
+const dialog = $<HTMLDialogElement>("layout-dialog");
+const library = $<HTMLDialogElement>("layout-library");
+const saveName = $<HTMLInputElement>("save-name");
 const savedLayouts = $("saved-layouts");
 const libraryNote = $("library-note");
 const saveKey = "rail-yard-v1";
@@ -78,33 +164,33 @@ try {
   sound.enabled = localStorage.getItem(soundKey) !== "yes";
 } catch {}
 const soundButton = $("sound");
-const undoStack = [];
+const undoStack: Layout[] = [];
 let layout = load();
 let { cols, rows } = gridSize(layout);
-let paletteKind = "track";
-let color = "brick";
+let paletteKind: PaletteKind = "track";
+let color: ColorName = "brick";
 let speed = 1;
-let hover = null;
-let keyboardCell = [0, 0];
-let drag = null;
-let toastTimer;
-let stockFrame = [];
-let lastFrame;
+let hover: Cell | null = null;
+let keyboardCell: Point = [0, 0];
+let drag: Drag | null = null;
+let toastTimer: ReturnType<typeof setTimeout> | undefined;
+let stockFrame: CarPosition[][] = [];
+let lastFrame: number | undefined;
 let smokeLayout = layout;
-let smokePuffs = [];
-let lastPuff = new WeakMap();
+let smokePuffs: Puff[] = [];
+let lastPuff = new WeakMap<Car, number>();
 const puffLifetime = 760;
-const movingTrains = new Set();
-const recordMovement = (train) => movingTrains.add(train);
-let activeCrane = null;
+const movingTrains = new Set<Train>();
+const recordMovement = (train: Train) => movingTrains.add(train);
+let activeCrane: { car: Car; start: number } | null = null;
 const craneSwingDuration = 950;
 const ringStation = () => sound.call("station");
 
-function load() {
+function load(): Layout {
   try {
     const raw = localStorage.getItem(saveKey);
     if (raw) {
-      const saved = expandStandardYard(JSON.parse(raw));
+      const saved: Layout = expandStandardYard(JSON.parse(raw));
       const size = gridSize(saved);
       if (saved.grid?.length === size.cols * size.rows && Array.isArray(saved.trains)) return saved;
     }
@@ -115,12 +201,12 @@ function load() {
 }
 
 const layoutEndpoint = "/api/layouts";
-let libraryEntries = [];
+let libraryEntries: Layout[] = [];
 let libraryBusy = false;
 let libraryPage = 0;
 const yardsPerPage = 5;
 
-async function requestLayout(query = "", layoutToSave) {
+async function requestLayout<T>(query = "", layoutToSave?: object): Promise<T> {
   const options = layoutToSave
     ? {
         method: "PUT",
@@ -138,8 +224,8 @@ async function requestLayout(query = "", layoutToSave) {
 }
 
 async function importBrowserYards() {
-  let original;
-  let entries;
+  let original: string | null = null;
+  let entries: unknown;
   try {
     original = localStorage.getItem(libraryKey);
     if (!original) return false;
@@ -164,7 +250,7 @@ async function importBrowserYards() {
           await requestLayout("?import", { ...entry, name: candidate });
           break;
         } catch (error) {
-          if (error.status !== 409) throw error;
+          if ((error as { status?: number }).status !== 409) throw error;
         }
       }
     } catch {
@@ -182,14 +268,14 @@ async function importBrowserYards() {
   return Boolean(remaining.length);
 }
 
-function layoutNameKey(name) {
+function layoutNameKey(name: string) {
   return name.toLowerCase();
 }
 
-function drawYardThumbnail(canvas, yard) {
+function drawYardThumbnail(canvas: HTMLCanvasElement, yard: Layout) {
   const { cols: width, rows: height } = gridSize(yard);
   const scale = Math.min(canvas.width / width, canvas.height / height);
-  const ctx = canvas.getContext("2d");
+  const ctx = context2d(canvas);
   ctx.translate((canvas.width - width * scale) / 2, (canvas.height - height * scale) / 2);
   ctx.scale(scale, scale);
   drawGround(ctx, yardBackground(yard), width, height);
@@ -209,7 +295,7 @@ function drawYardThumbnail(canvas, yard) {
 function showLibrary() {
   const start = libraryPage * yardsPerPage;
   const pages = Math.max(1, Math.ceil(libraryEntries.length / yardsPerPage));
-  const fresh = { ...blankLayout(gridSize(layout)), background: yardBackground(layout) };
+  const fresh: Layout = { ...blankLayout(gridSize(layout)), background: yardBackground(layout) };
   const entries = [fresh, ...libraryEntries.slice(start, start + yardsPerPage)];
   savedLayouts.replaceChildren();
   entries.forEach((yard, index) => {
@@ -244,8 +330,8 @@ function showLibrary() {
   });
   $("library-pages").hidden = pages === 1;
   $("library-page").textContent = libraryPage + 1 + " / " + pages;
-  $("library-prev").disabled = libraryBusy || libraryPage === 0;
-  $("library-next").disabled = libraryBusy || libraryPage + 1 >= pages;
+  $<HTMLButtonElement>("library-prev").disabled = libraryBusy || libraryPage === 0;
+  $<HTMLButtonElement>("library-next").disabled = libraryBusy || libraryPage + 1 >= pages;
   updateSaveLabel(libraryEntries);
 }
 
@@ -258,18 +344,19 @@ $("library-next").onclick = () => {
   showLibrary();
 };
 
-function setLibraryBusy(busy) {
+function setLibraryBusy(busy: boolean) {
   libraryBusy = busy;
-  $("open-library").disabled = busy;
-  $("save-yard").disabled = busy;
+  $<HTMLButtonElement>("open-library").disabled = busy;
+  $<HTMLButtonElement>("save-yard").disabled = busy;
   saveName.disabled = busy;
   closeLibrary.disabled = busy;
-  for (const button of savedLayouts.children) button.disabled = busy;
-  $("library-prev").disabled = busy || libraryPage === 0;
-  $("library-next").disabled = busy || (libraryPage + 1) * yardsPerPage >= libraryEntries.length;
+  for (const button of children<HTMLButtonElement>(savedLayouts)) button.disabled = busy;
+  $<HTMLButtonElement>("library-prev").disabled = busy || libraryPage === 0;
+  $<HTMLButtonElement>("library-next").disabled =
+    busy || (libraryPage + 1) * yardsPerPage >= libraryEntries.length;
 }
 
-function updateSaveLabel(entries) {
+function updateSaveLabel(entries: Layout[]) {
   const name = layoutNameKey(saveName.value.trim());
   const exists = entries.some((entry) => layoutNameKey(entry.name) === name);
   $("save-yard").textContent = exists ? "Update yard" : "Save yard";
@@ -285,7 +372,7 @@ function save() {
 function snapshot() {
   return structuredClone(layout);
 }
-function commit(previous) {
+function commit(previous: Layout) {
   undoStack.push(previous);
   if (undoStack.length > 35) undoStack.shift();
   save();
@@ -293,7 +380,7 @@ function commit(previous) {
   redrawRails();
   redrawStock();
 }
-function notify(message) {
+function notify(message: string) {
   const toast = $("toast");
   toast.hidden = false;
   toast.textContent = message;
@@ -305,17 +392,17 @@ function notify(message) {
 
 function updateStatus() {
   ({ cols, rows } = gridSize(layout));
-  for (const button of $("grid-sizes").children) {
-    button.setAttribute("aria-pressed", Number(button.dataset.cols) === cols);
+  for (const button of children($("grid-sizes"))) {
+    button.setAttribute("aria-pressed", String(Number(button.dataset.cols) === cols));
   }
   const title = $("layout-name");
   title.textContent = layout.name;
   title.title = layout.name;
-  $("undo").disabled = !undoStack.length;
+  $<HTMLButtonElement>("undo").disabled = !undoStack.length;
   updateBackgroundButtons();
 }
 
-const buttons = [
+const buttons: [id: string, symbol: Symbol, text: string][] = [
   ["track-tab", "track", "Track"],
   ["cars-tab", "cars", "Train cars"],
   ["remove", "remove", "Remove"],
@@ -324,20 +411,20 @@ const buttons = [
 for (const [id, symbol, text] of buttons) $(id).innerHTML = icon(symbol) + text;
 $("layouts").innerHTML = icon("layout") + "<span>Layouts</span>";
 $("layouts").setAttribute("aria-label", "Layouts");
-dialog.querySelector(".close").innerHTML = icon("close");
-const closeLibrary = library.querySelector(".close");
+dialog.querySelector(".close")!.innerHTML = icon("close");
+const closeLibrary = library.querySelector<HTMLButtonElement>(".close")!;
 closeLibrary.innerHTML = icon("close");
 closeLibrary.onclick = () => library.close();
 library.addEventListener("cancel", (event) => {
   if (libraryBusy) event.preventDefault();
 });
 
-function yardBackground(yard) {
-  return Object.hasOwn(BACKGROUNDS, yard.background)
-    ? yard.background
-    : yard.landscape
-      ? "meadow"
-      : "plain";
+function isBackground(value: unknown): value is Background {
+  return typeof value === "string" && Object.hasOwn(BACKGROUNDS, value);
+}
+
+function yardBackground(yard: Pick<Layout, "background" | "landscape">): Background {
+  return isBackground(yard.background) ? yard.background : yard.landscape ? "meadow" : "plain";
 }
 
 function background() {
@@ -345,12 +432,12 @@ function background() {
 }
 
 function updateBackgroundButtons() {
-  for (const button of $("backgrounds").children) {
-    button.setAttribute("aria-pressed", button.dataset.background === background());
+  for (const button of children($("backgrounds"))) {
+    button.setAttribute("aria-pressed", String(button.dataset.background === background()));
   }
 }
 
-for (const [key, name] of Object.entries(BACKGROUNDS)) {
+for (const [key, name] of Object.entries(BACKGROUNDS) as [Background, string][]) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "background-option";
@@ -359,7 +446,7 @@ for (const [key, name] of Object.entries(BACKGROUNDS)) {
   sample.width = 216;
   sample.height = 126;
   sample.setAttribute("aria-hidden", "true");
-  const context = sample.getContext("2d");
+  const context = context2d(sample);
   context.scale(sample.width / COLS, sample.height / ROWS);
   drawGround(context, key);
   button.append(sample, name);
@@ -376,7 +463,7 @@ for (const [key, name] of Object.entries(BACKGROUNDS)) {
 }
 const gridNote = $("grid-note");
 const blankAtSize = $("blank-at-size");
-let pendingSize;
+let pendingSize: GridSize | null = null;
 
 function resetGridNotice() {
   pendingSize = null;
@@ -384,7 +471,7 @@ function resetGridNotice() {
   blankAtSize.hidden = true;
 }
 
-function applyGrid(next) {
+function applyGrid(next: Layout) {
   const previous = snapshot();
   layout = next;
   hover = null;
@@ -398,7 +485,7 @@ for (const size of GRID_SIZES) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = "layout-option grid-option";
-  button.dataset.cols = size.cols;
+  button.dataset.cols = String(size.cols);
   const dimensions = document.createElement("span");
   dimensions.textContent = size.cols + " × " + size.rows;
   button.append(size.label, dimensions);
@@ -427,8 +514,8 @@ $("start-blank").onclick = () => {
 
 function updateCoordinates() {
   if ($("columns").children.length === cols && $("rows").children.length === rows) return;
-  map.style.setProperty("--cols", cols);
-  map.style.setProperty("--rows", rows);
+  map.style.setProperty("--cols", String(cols));
+  map.style.setProperty("--rows", String(rows));
   const columns = Array.from({ length: cols }, (_, index) => {
     const label = document.createElement("span");
     label.textContent = String.fromCharCode(65 + index);
@@ -436,15 +523,21 @@ function updateCoordinates() {
   });
   const rowLabels = Array.from({ length: rows }, (_, index) => {
     const label = document.createElement("span");
-    label.textContent = index + 1;
+    label.textContent = String(index + 1);
     return label;
   });
   $("columns").replaceChildren(...columns);
   $("rows").replaceChildren(...rowLabels);
 }
 
-function drawPreview(canvas, type, kind, paint = color, tile = { type, turn: 0, branch: false }) {
-  const ctx = canvas.getContext("2d");
+function drawPreview(
+  canvas: HTMLCanvasElement,
+  type: TrackType | StockType,
+  kind: PaletteKind,
+  paint: ColorName = color,
+  tile: Tile = { type: type as TrackType, turn: 0, branch: false },
+) {
+  const ctx = context2d(canvas);
   ctx.resetTransform();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.translate(canvas.width / 2, canvas.height / 2);
@@ -454,10 +547,10 @@ function drawPreview(canvas, type, kind, paint = color, tile = { type, turn: 0, 
     if (tile.type === "tunnel") drawTunnelRoof(ctx, tile, -0.5, -0.5);
   } else {
     ctx.scale(220, 220);
-    drawCar(ctx, { type, color: paint }, 0, 0);
+    drawCar(ctx, { type: type as StockType, color: paint }, 0, 0);
   }
 }
-function preview(type, kind, paint, tile) {
+function preview(type: TrackType | StockType, kind: PaletteKind, paint?: ColorName, tile?: Tile) {
   const canvas = document.createElement("canvas");
   canvas.width = kind === "track" ? 144 : 176;
   canvas.height = kind === "track" ? 128 : 120;
@@ -466,7 +559,7 @@ function preview(type, kind, paint, tile) {
   return canvas;
 }
 
-const trackPalette = [
+const trackPalette: TrackType[] = [
   "straight",
   "curve",
   "cross",
@@ -479,7 +572,7 @@ const trackPalette = [
   "tunnel",
 ];
 
-const carPalette = [
+const carPalette: StockType[] = [
   "steam",
   "diesel",
   "electric",
@@ -495,20 +588,20 @@ const carPalette = [
 ];
 
 function fillPalette() {
-  const tracks = paletteKind === "track";
-  const items = tracks ? TRACK : STOCK;
+  const items: (TrackPiece | CarPiece)[] =
+    paletteKind === "track"
+      ? trackPalette.map((type) => ({ kind: "track", type, color }))
+      : carPalette.map((type) => ({ kind: "cars", type, color }));
   palette.dataset.kind = paletteKind;
   palette.replaceChildren();
-  for (const type of tracks ? trackPalette : carPalette) {
+  for (const item of items) {
     const card = document.createElement("div");
     card.className = "piece";
-    card.dataset.piece = type;
+    card.dataset.piece = item.type;
     const label = document.createElement("span");
-    label.textContent = items[type].name;
-    card.append(preview(type, paletteKind), label);
-    card.addEventListener("pointerdown", (event) =>
-      beginDrag(event, { kind: paletteKind, type, color }),
-    );
+    label.textContent = item.kind === "track" ? TRACK[item.type].name : STOCK[item.type].name;
+    card.append(preview(item.type, item.kind), label);
+    card.addEventListener("pointerdown", (event) => beginDrag(event, item));
     palette.append(card);
   }
   updatePalette();
@@ -516,17 +609,19 @@ function fillPalette() {
 
 function updatePalette(refreshArt = false) {
   const tracks = paletteKind === "track";
-  $("track-tab").setAttribute("aria-pressed", tracks);
-  $("cars-tab").setAttribute("aria-pressed", !tracks);
+  $("track-tab").setAttribute("aria-pressed", String(tracks));
+  $("cars-tab").setAttribute("aria-pressed", String(!tracks));
   palette.setAttribute("aria-label", tracks ? "Track pieces" : "Train cars");
   $("colors").hidden = tracks;
   $("color-name").textContent = COLORS[color][0];
   if (refreshArt) {
-    for (const card of palette.children)
-      drawPreview(card.firstElementChild, card.dataset.piece, paletteKind);
+    for (const card of children(palette)) {
+      const piece = card.dataset.piece as TrackType | StockType;
+      drawPreview(card.firstElementChild as HTMLCanvasElement, piece, paletteKind);
+    }
   }
-  for (const swatch of $("swatches").children)
-    swatch.setAttribute("aria-pressed", swatch.dataset.color === color);
+  for (const swatch of children($("swatches")))
+    swatch.setAttribute("aria-pressed", String(swatch.dataset.color === color));
   const hint = tracks
     ? "Drag tracks to place or move them. Tap to turn."
     : "Drag cars onto the rails. Drop an engine on a train to join it.";
@@ -534,7 +629,7 @@ function updatePalette(refreshArt = false) {
   redrawRails();
 }
 
-for (const [key, [name, fill]] of Object.entries(COLORS)) {
+for (const [key, [name, fill]] of Object.entries(COLORS) as [ColorName, [string, string]][]) {
   const swatch = document.createElement("button");
   swatch.className = "swatch";
   swatch.dataset.color = key;
@@ -549,7 +644,7 @@ for (const [key, [name, fill]] of Object.entries(COLORS)) {
   $("swatches").append(swatch);
 }
 
-function setPalette(next) {
+function setPalette(next: PaletteKind) {
   if (next === paletteKind || drag) return;
   paletteKind = next;
   fillPalette();
@@ -570,7 +665,7 @@ function resize() {
   for (const canvas of canvasLayers) {
     canvas.width = Math.max(1, Math.round(cell * cols * dpr));
     canvas.height = Math.max(1, Math.round(cell * rows * dpr));
-    canvas.getContext("2d").setTransform(canvas.width / cols, 0, 0, canvas.height / rows, 0, 0);
+    context2d(canvas).setTransform(canvas.width / cols, 0, 0, canvas.height / rows, 0, 0);
   }
   drawGround(groundContext, background(), cols, rows);
   redrawRails();
@@ -581,7 +676,11 @@ function occupiedSquares() {
   return new Set(stockFrame.flatMap((cars) => cars.map((car) => car.index)));
 }
 
-function trackEdits(item, index) {
+function movesTrack(item: Item | null): item is TrackMove {
+  return item?.kind === "track" || Boolean(item?.tile);
+}
+
+function trackEdits(item: TrackMove, index: number): GridEdit[] | null {
   const occupied = occupiedSquares();
   if (occupied.has(index)) return null;
   if (!item.tile) return fitTrack(layout.grid, index, item.type, occupied, null, cols);
@@ -589,17 +688,18 @@ function trackEdits(item, index) {
   if (source === index || layout.grid[source] !== item.tile || occupied.has(source)) return null;
   const grid = layout.grid.slice();
   grid[source] = null;
-  return [[source, null], ...fitTrack(grid, index, item.type, occupied, item.tile, cols)];
+  const moved: TrackEdit[] = fitTrack(grid, index, item.type, occupied, item.tile, cols);
+  return [[source, null], ...moved];
 }
 
 function redrawRails() {
   railsContext.clearRect(0, 0, cols, rows);
   roofContext.clearRect(0, 0, cols, rows);
-  const trackDrop = hover && (drag?.kind === "track" || drag?.tile);
-  const edits = trackDrop ? trackEdits(drag, hover.index) : null;
+  const trackDrop = hover && movesTrack(drag) ? drag : null;
+  const edits = trackDrop && hover ? trackEdits(trackDrop, hover.index) : null;
   const grid = edits ? layout.grid.slice() : layout.grid;
   for (const [index, tile] of edits ?? []) grid[index] = tile;
-  const draw = (index, tile) => {
+  const draw = (index: number, tile: Tile) => {
     const visible = isSwitch(tile)
       ? { ...tile, branch: switchBranch(grid, index, tile, cols) }
       : tile;
@@ -612,7 +712,7 @@ function redrawRails() {
   if (!hover) return;
   const { column, row, index } = hover;
   const tile = grid[index];
-  const valid = trackDrop ? Boolean(edits) || drag.index === index : Boolean(tile);
+  const valid = trackDrop ? Boolean(edits) || trackDrop.index === index : Boolean(tile);
   railsContext.fillStyle = valid ? "#fff2b883" : "#c7705959";
   railsContext.fillRect(column, row, 1, 1);
   railsContext.strokeStyle = valid ? "#935e2d" : "#9b4538";
@@ -628,14 +728,14 @@ function redrawRails() {
       hover.y - row,
       false,
       cols,
-    );
+    )!;
     const [car] = carPositions(preview, cols);
     railsContext.globalAlpha = 0.73;
     drawCar(railsContext, car, car.x, car.y, car.angle);
     railsContext.globalAlpha = 1;
   }
 }
-function drawTunnelRoofs(ctx, grid, width) {
+function drawTunnelRoofs(ctx: CanvasRenderingContext2D, grid: Grid, width: number) {
   for (const [index, tile] of grid.entries()) {
     if (tile?.type === "tunnel") drawTunnelRoof(ctx, tile, ...cellAt(index, width), grid, width);
   }
@@ -676,7 +776,7 @@ function redrawStock(now = performance.now(), emitSmoke = false) {
     drawSteamPuff(stockContext, puff, Math.max(0, now - puff.start) / puffLifetime);
 }
 
-function tick(now) {
+function tick(now: number) {
   const seconds = lastFrame === undefined ? 0 : Math.min((now - lastFrame) / 1000, 0.05);
   lastFrame = now;
   const moving = speed && layout.trains.length && !drag?.moved;
@@ -702,7 +802,7 @@ function tick(now) {
   requestAnimationFrame(tick);
 }
 
-function locate(event) {
+function locate(event: PointerEvent): Cell | null {
   const rect = rails.getBoundingClientRect();
   const x = ((event.clientX - rect.left) / rect.width) * cols;
   const y = ((event.clientY - rect.top) / rect.height) * rows;
@@ -712,9 +812,9 @@ function locate(event) {
   return { x, y, column, row, index: indexAt(column, row, cols) };
 }
 
-function hitCar(cell, bySquare = false) {
+function hitCar(cell: Cell, bySquare = false) {
   if (underTunnelRoof(layout.grid, cell.x, cell.y, cols)) return null;
-  let result = null;
+  let result: { trainIndex: number; carIndex: number } | null = null;
   let distance = 0.42;
   for (const [trainIndex, cars] of stockFrame.entries()) {
     for (const [carIndex, car] of cars.entries()) {
@@ -728,10 +828,10 @@ function hitCar(cell, bySquare = false) {
   return result;
 }
 
-function dropPiece(cell, item) {
+function dropPiece(cell: Cell, item: TrackMove | CarPiece) {
   const { index } = cell;
   const tile = layout.grid[index];
-  if (item.kind === "track" || item.tile) {
+  if (movesTrack(item)) {
     if (item.tile && index === item.index) return;
     const edits = trackEdits(item, index);
     if (!edits) return notify("Wait for the train to clear this square.");
@@ -739,7 +839,7 @@ function dropPiece(cell, item) {
       !item.tile &&
       edits.length === 1 &&
       tile?.type === item.type &&
-      tile.turn === edits[0][1].turn
+      tile.turn === edits[0][1]?.turn
     )
       return;
     const previous = snapshot();
@@ -747,7 +847,7 @@ function dropPiece(cell, item) {
     return commit(previous);
   }
   if (!tile) return notify("Drop the car on a track piece.");
-  const car = { type: item.type, color: item.color };
+  const car: Car = { type: item.type, color: item.color };
   const hit = hitCar(cell, STOCK[item.type].engine);
   const previous = snapshot();
   if (STOCK[item.type].engine && !hit) {
@@ -759,7 +859,7 @@ function dropPiece(cell, item) {
       cell.y - cell.row,
       false,
       cols,
-    );
+    )!;
     const [engine] = carPositions(train, cols);
     if (
       stockFrame.some((cars) =>
@@ -791,7 +891,7 @@ function dropPiece(cell, item) {
   commit(previous);
 }
 
-function turnPiece(index) {
+function turnPiece(index: number) {
   const tile = layout.grid[index];
   if (!tile) return;
   const rotated = rotateTrack(layout.grid, index, cols);
@@ -803,9 +903,10 @@ function turnPiece(index) {
   commit(previous);
 }
 
-function removePiece(item) {
-  const { index, train, carIndex } = item;
-  if (train) {
+function removePiece(item: BoardItem) {
+  const { index } = item;
+  if (item.train) {
+    const { train, carIndex } = item;
     const trainIndex = layout.trains.indexOf(train);
     if (trainIndex === -1 || !train.cars[carIndex]) return;
     const previous = snapshot();
@@ -820,7 +921,7 @@ function removePiece(item) {
   commit(previous);
 }
 
-function boardItem(cell) {
+function boardItem(cell: Cell): BoardItem {
   const hit = hitCar(cell, true);
   if (hit) {
     const train = layout.trains[hit.trainIndex];
@@ -833,19 +934,21 @@ function boardItem(cell) {
     };
   }
   const tile = layout.grid[cell.index];
-  return { kind: "board", index: cell.index, tile, type: tile?.type };
+  return tile
+    ? { kind: "board", index: cell.index, tile, type: tile.type }
+    : { kind: "board", index: cell.index, tile: null };
 }
 
-function tapBoard(cell, item = boardItem(cell)) {
+function tapBoard(cell: Cell, item: BoardItem = boardItem(cell)) {
   if (item.train && STOCK[item.type].engine) sound.call(item.type);
   else if (item.type === "crane" && item.train.cars[item.carIndex]?.type === "crane") {
     activeCrane = { car: item.train.cars[item.carIndex], start: performance.now() };
   } else turnPiece(cell.index);
 }
 
-function beginDrag(event, item) {
+function beginDrag(event: PointerEvent, item: Item) {
   if (!event.isPrimary || event.button !== 0 || drag) return;
-  event.currentTarget.setPointerCapture(event.pointerId);
+  (event.currentTarget as Element).setPointerCapture(event.pointerId);
   drag = {
     ...item,
     id: event.pointerId,
@@ -856,7 +959,7 @@ function beginDrag(event, item) {
   };
 }
 
-function overRemove(event) {
+function overRemove(event: PointerEvent) {
   const box = removeZone.getBoundingClientRect();
   return (
     event.clientX >= box.left &&
@@ -866,28 +969,29 @@ function overRemove(event) {
   );
 }
 
-function moveDrag(event) {
+function moveDrag(event: PointerEvent) {
   if (!drag || event.pointerId !== drag.id) return;
   if (!drag.moved && Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 7) return;
   drag.moved = true;
   if (!drag.type) return;
-  if (!drag.ghost) {
-    drag.ghost = document.createElement("div");
-    drag.ghost.className = "drag-ghost";
+  let ghost = drag.ghost;
+  if (!ghost) {
+    ghost = drag.ghost = document.createElement("div");
+    ghost.className = "drag-ghost";
     const kind = drag.kind === "board" ? (drag.train ? "cars" : "track") : drag.kind;
-    drag.ghost.append(preview(drag.type, kind, drag.color, drag.tile));
-    document.body.append(drag.ghost);
+    ghost.append(preview(drag.type, kind, drag.color, drag.tile));
+    document.body.append(ghost);
     removeZone.classList.toggle("available", drag.kind === "board");
   }
   hover = drag.kind === "board" && !drag.tile ? null : locate(event);
   removeZone.classList.toggle("targeted", drag.kind === "board" && overRemove(event));
-  drag.ghost.hidden = Boolean(hover);
-  drag.ghost.style.transform =
+  ghost.hidden = Boolean(hover);
+  ghost.style.transform =
     "translate(" + (event.clientX - 36) + "px," + (event.clientY - 36) + "px)";
   redrawRails();
 }
 
-function endDrag(event) {
+function endDrag(event: PointerEvent) {
   if (!drag || event.pointerId !== drag.id) return;
   const item = drag;
   item.ghost?.remove();
@@ -921,7 +1025,12 @@ rails.addEventListener("pointerdown", (event) => {
   beginDrag(event, boardItem(cell));
 });
 rails.addEventListener("keydown", (event) => {
-  const movement = { ArrowUp: [0, -1], ArrowRight: [1, 0], ArrowDown: [0, 1], ArrowLeft: [-1, 0] };
+  const movement: Partial<Record<string, Point>> = {
+    ArrowUp: [0, -1],
+    ArrowRight: [1, 0],
+    ArrowDown: [0, 1],
+    ArrowLeft: [-1, 0],
+  };
   const step = movement[event.key];
   if (!step && !["Enter", " ", "Delete", "Backspace"].includes(event.key)) return;
   event.preventDefault();
@@ -946,7 +1055,7 @@ $("track-tab").onclick = () => setPalette("track");
 $("cars-tab").onclick = () => setPalette("cars");
 $("undo").onclick = () => {
   if (!undoStack.length) return;
-  layout = undoStack.pop();
+  layout = undoStack.pop()!;
   hover = null;
   keyboardCell = [0, 0];
   save();
@@ -969,7 +1078,7 @@ $("open-library").onclick = async () => {
   library.showModal();
   try {
     const pendingImport = await importBrowserYards();
-    libraryEntries = await requestLayout("?previews");
+    libraryEntries = await requestLayout<Layout[]>("?previews");
     showLibrary();
     libraryNote.textContent = pendingImport ? "Some older yards could not be imported." : "";
   } catch {
@@ -1002,23 +1111,23 @@ $("save-layout").onsubmit = async (event) => {
     setLibraryBusy(false);
   }
 };
-const speedButtons = document.querySelectorAll("[data-speed]");
-document.querySelector('[data-speed="0"]').innerHTML = icon("pause");
-function setSpeed(nextSpeed) {
+const speedButtons = document.querySelectorAll<HTMLButtonElement>("[data-speed]");
+document.querySelector('[data-speed="0"]')!.innerHTML = icon("pause");
+function setSpeed(nextSpeed: number) {
   speed = nextSpeed;
   if (!speed) {
     sound.stopRolling();
     save();
   }
   for (const button of speedButtons)
-    button.setAttribute("aria-pressed", Number(button.dataset.speed) === speed);
+    button.setAttribute("aria-pressed", String(Number(button.dataset.speed) === speed));
 }
 for (const button of speedButtons) {
   button.onclick = () => setSpeed(Number(button.dataset.speed));
 }
 function updateSoundButton() {
   soundButton.innerHTML = icon(sound.enabled ? "sound" : "mute");
-  soundButton.setAttribute("aria-pressed", sound.enabled);
+  soundButton.setAttribute("aria-pressed", String(sound.enabled));
 }
 soundButton.onclick = () => {
   sound.setEnabled(!sound.enabled);

@@ -8,7 +8,7 @@
     "check": "vp check",
     "dev": "vp dev",
     "fix": "vp check --fix",
-    "layouts": "node layouts.mjs"
+    "layouts": "node layouts.ts"
   },
   "devDependencies": {
     "@types/node": "26.6.6",

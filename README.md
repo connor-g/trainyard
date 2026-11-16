@@ -29,7 +29,7 @@ Run `docker compose down` to stop the app. Your saved yards stay on disk.
 
 ## Layouts and saves
 
-Docker Compose runs the browser app through Nginx and a small Node.js service for saving and loading layouts. The built-in layouts are defined in [src/railway.mjs](src/railway.mjs) and [presets.mjs](presets.mjs). The service creates any missing presets at startup. It stores yard saves in `saved-yards/`, which Git ignores.
+Docker Compose runs the browser app through Nginx and a small Node.js service for saving and loading layouts. The built-in layouts are defined in [src/railway.ts](src/railway.ts) and [presets.ts](presets.ts). The service creates any missing presets at startup. It stores yard saves in `saved-yards/`, which Git ignores.
 
 ## Development
 
@@ -41,7 +41,7 @@ The app is built with [Vite+](https://viteplus.dev/). Run `npm install`, then:
 
 The app's source is in `src/`, with `index.html` at the repository root. Files in `public/` are copied to the build unchanged.
 
-TypeScript is set up with strict typing, erasable syntax only, and isolated modules, targeting ES2025 to match the latest Safari. New modules can be written as `.mts`. The existing `.mjs` files aren't type-checked until you add `// @ts-check` at the top of a file.
+TypeScript is set up with strict typing, erasable syntax only, and isolated modules, targeting ES2025 to match the latest Safari. All source files are TypeScript (`.ts`), and Node runs the layouts service directly by stripping types.
 
 ## License
 

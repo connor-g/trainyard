@@ -1,7 +1,8 @@
 *
 !Dockerfile
 !nginx.conf
-!layouts.mjs
-!presets.mjs
+!layouts.ts
+!presets.ts
+!src/railway.ts
 !public/
 !public/**

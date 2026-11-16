@@ -1,22 +1,36 @@
-import { COLS, ROWS, COLORS, isSwitch, pointOn, segment, trackPaths } from "./railway.mjs";
+import { COLS, ROWS, COLORS, isSwitch, pointOn, segment, trackPaths } from "./railway.ts";
+import type { Car, Grid, Point, Position, Segment, Tile } from "./railway.ts";
+
+type Context = CanvasRenderingContext2D;
+type Paint = string | CanvasGradient;
+type Radii = number | number[];
+type Shades = readonly string[];
+type Joins = readonly [start: boolean, end: boolean];
+
+export interface SteamPuff {
+  x: number;
+  y: number;
+  dx: number;
+  dy: number;
+}
 
 const SCENE_ROWS = 12;
 
-function randomSource(seed) {
+function randomSource(seed: number) {
   return () => {
     seed = (1664525 * seed + 1013904223) >>> 0;
     return seed / 4294967296;
   };
 }
 
-function oval(ctx, x, y, rx, ry, color) {
+function oval(ctx: Context, x: number, y: number, rx: number, ry: number, color: Paint) {
   ctx.beginPath();
   ctx.ellipse(x, y, rx, ry, 0, 0, 2 * Math.PI);
   ctx.fillStyle = color;
   ctx.fill();
 }
 
-function line(ctx, points, color, width) {
+function line(ctx: Context, points: readonly Point[], color: Paint, width: number) {
   ctx.beginPath();
   points.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
   ctx.strokeStyle = color;
@@ -24,7 +38,17 @@ function line(ctx, points, color, width) {
   ctx.stroke();
 }
 
-function rounded(ctx, x, y, w, h, r, fill, stroke, width = 0.018) {
+function rounded(
+  ctx: Context,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: Radii,
+  fill: Paint,
+  stroke?: Paint,
+  width = 0.018,
+) {
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, r);
   ctx.fillStyle = fill;
@@ -36,7 +60,7 @@ function rounded(ctx, x, y, w, h, r, fill, stroke, width = 0.018) {
   }
 }
 
-function pine(ctx, x, y, scale, shade) {
+function pine(ctx: Context, x: number, y: number, scale: number, shade: Shades) {
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(scale, scale);
@@ -56,7 +80,7 @@ function pine(ctx, x, y, scale, shade) {
   ctx.restore();
 }
 
-function pond(ctx) {
+function pond(ctx: Context) {
   ctx.save();
   ctx.translate(9.48, 6.94);
   ctx.beginPath();
@@ -127,7 +151,7 @@ function pond(ctx) {
   ctx.restore();
 }
 
-function depot(ctx, x, y) {
+function depot(ctx: Context, x: number, y: number) {
   ctx.save();
   ctx.translate(x, y);
   rounded(ctx, -0.79, -0.19, 1.58, 0.53, 0.07, "#aab582");
@@ -168,8 +192,9 @@ export const BACKGROUNDS = {
   mountain: "Mountains",
   desert: "Desert",
 };
+export type Background = keyof typeof BACKGROUNDS;
 
-function polygon(ctx, points, color) {
+function polygon(ctx: Context, points: readonly Point[], color: Paint) {
   ctx.beginPath();
   points.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
   ctx.closePath();
@@ -177,18 +202,18 @@ function polygon(ctx, points, color) {
   ctx.fill();
 }
 
-function coast(ctx, rand) {
+function coast(ctx: Context, rand: () => number) {
   const water = ctx.createLinearGradient(0, 0, 5, 2);
   water.addColorStop(0, "#67a5b0");
   water.addColorStop(1, "#8cc6b6");
-  const shore = (y) => 2.65 + 0.65 * Math.sin(y * 0.65) + 0.22 * Math.cos(y * 1.4);
-  const edge = Array.from({ length: 49 }, (_, i) => [shore(i / 4), i / 4]);
-  polygon(ctx, [[0, 0], ...edge.map(([x, y]) => [x + 0.9, y]), [0, SCENE_ROWS]], "#efd5a0");
+  const shore = (y: number) => 2.65 + 0.65 * Math.sin(y * 0.65) + 0.22 * Math.cos(y * 1.4);
+  const edge = Array.from({ length: 49 }, (_, i): Point => [shore(i / 4), i / 4]);
+  polygon(ctx, [[0, 0], ...edge.map(([x, y]): Point => [x + 0.9, y]), [0, SCENE_ROWS]], "#efd5a0");
   polygon(ctx, [[0, 0], ...edge, [0, SCENE_ROWS]], water);
   line(ctx, edge, "#fff3d7", 0.09);
   line(
     ctx,
-    edge.map(([x, y]) => [x - 0.26, y]),
+    edge.map(([x, y]): Point => [x - 0.26, y]),
     "#c2e2d1a0",
     0.045,
   );
@@ -262,7 +287,7 @@ function coast(ctx, rand) {
   );
 }
 
-function mountains(ctx, rand) {
+function mountains(ctx: Context, rand: () => number) {
   for (const [x, y, size] of [
     [0.5, 2.7, 2.4],
     [3.0, 1.4, 2.4],
@@ -324,7 +349,7 @@ function mountains(ctx, rand) {
   depot(ctx, 6.42, 8.48);
 }
 
-function desert(ctx, rand) {
+function desert(ctx: Context, rand: () => number) {
   for (const [x, y, size] of [
     [1.1, 2.0, 1.6],
     [14.8, 1.3, 1.45],
@@ -398,17 +423,18 @@ function desert(ctx, rand) {
   }
 }
 
-export function drawGround(ctx, background, cols = COLS, rows = ROWS) {
+export function drawGround(ctx: Context, background: Background | true, cols = COLS, rows = ROWS) {
   ctx.save();
   ctx.scale(cols / COLS, rows / SCENE_ROWS);
   const theme = background === true ? "meadow" : background;
   const rand = randomSource(4737);
   const grass = ctx.createLinearGradient(0, 0, COLS, SCENE_ROWS);
-  const [light, middle, dark] = {
+  const grounds: Partial<Record<Background, [string, string, string]>> = {
     coast: ["#e5dfa8", "#d6d8a1", "#baca94"],
     mountain: ["#b5c3b7", "#c3ceac", "#a5bb9e"],
     desert: ["#edd3a3", "#e9c791", "#dcad7d"],
-  }[theme] ?? ["#d6dfa9", "#cfdda6", "#bacb95"];
+  };
+  const [light, middle, dark] = grounds[theme] ?? ["#d6dfa9", "#cfdda6", "#bacb95"];
   grass.addColorStop(0, light);
   grass.addColorStop(0.55, middle);
   grass.addColorStop(1, dark);
@@ -540,12 +566,12 @@ export function drawGround(ctx, background, cols = COLS, rows = ROWS) {
     );
 }
 
-function offsetPoint(path, fraction, offset) {
+function offsetPoint(path: Segment, fraction: number, offset: number): Point {
   const [x, y, angle] = pointOn(path, fraction);
   return [x - Math.sin(angle) * offset, y + Math.cos(angle) * offset];
 }
 
-function rail(ctx, path, offset, color, width) {
+function rail(ctx: Context, path: Segment, offset: number, color: Paint, width: number) {
   const steps = path.turn ? 16 : 1;
   const points = Array.from({ length: steps + 1 }, (_, i) => offsetPoint(path, i / steps, offset));
   line(ctx, points, color, width);
@@ -556,19 +582,33 @@ const tunnelHalfWidth = 0.27;
 // Overlap joined segments slightly so canvas antialiasing cannot leave a hairline gap.
 const joinedHalfLength = 0.515;
 
-function structureJoins(grid, x, y, cols, tile) {
+function structureJoins(
+  grid: Grid | undefined,
+  x: number,
+  y: number,
+  cols: number,
+  tile: Tile,
+): Joins {
   if (!grid) return [false, false];
   const vertical = tile.turn % 2;
-  return [-1, 1].map((step) => {
+  const joined = (step: number) => {
     const nx = x + (vertical ? 0 : step);
     const ny = y + (vertical ? step : 0);
     if (nx < 0 || nx >= cols || ny < 0 || ny * cols >= grid.length) return false;
     const neighbor = grid[ny * cols + nx];
     return neighbor?.type === tile.type && neighbor.turn % 2 === vertical;
-  });
+  };
+  return [joined(-1), joined(1)];
 }
 
-export function drawTunnelRoof(ctx, tile, x, y, grid, cols) {
+export function drawTunnelRoof(
+  ctx: Context,
+  tile: Tile,
+  x: number,
+  y: number,
+  grid?: Grid,
+  cols = COLS,
+) {
   const [joinStart, joinEnd] = structureJoins(grid, x, y, cols, tile);
   const start = joinStart ? -joinedHalfLength : -tunnelHalfLength;
   const end = joinEnd ? joinedHalfLength : tunnelHalfLength;
@@ -647,7 +687,7 @@ export function drawTunnelRoof(ctx, tile, x, y, grid, cols) {
   ctx.restore();
 }
 
-export function underTunnelRoof(grid, x, y, cols) {
+export function underTunnelRoof(grid: Grid, x: number, y: number, cols: number) {
   const col = Math.floor(x);
   const row = Math.floor(y);
   if (col < 0 || col >= cols || row < 0) return false;
@@ -662,7 +702,7 @@ export function underTunnelRoof(grid, x, y, cols) {
   return joins[along < 0 ? 0 : 1];
 }
 
-function trackScenery(ctx, tile, foreground, joins) {
+function trackScenery(ctx: Context, tile: Tile, foreground: boolean, joins: Joins) {
   if (tile.type !== "station" && tile.type !== "bridge") return;
   ctx.save();
   ctx.translate(0.5, 0.5);
@@ -750,11 +790,12 @@ function trackScenery(ctx, tile, foreground, joins) {
   ctx.restore();
 }
 
-export function drawTile(ctx, tile, x = 0, y = 0, grid, cols) {
+export function drawTile(ctx: Context, tile: Tile, x = 0, y = 0, grid?: Grid, cols = COLS) {
   ctx.save();
   ctx.translate(x, y);
   const paths = trackPaths(tile, true).map(([from, to]) => segment(0, from, to));
-  const joins = tile.type === "bridge" ? structureJoins(grid, x, y, cols, tile) : null;
+  const joins: Joins =
+    tile.type === "bridge" ? structureJoins(grid, x, y, cols, tile) : [false, false];
   trackScenery(ctx, tile, false, joins);
   if (isSwitch(tile) && !tile.branch) paths.reverse();
   for (const path of paths) rail(ctx, path, 0, "#ad956e", 0.42);
@@ -804,13 +845,13 @@ export function drawTile(ctx, tile, x = 0, y = 0, grid, cols) {
 
 const steamStackOffset = 0.148;
 
-export function steamPuff(car) {
+export function steamPuff(car: Position): SteamPuff {
   const dx = Math.cos(car.angle);
   const dy = Math.sin(car.angle);
   return { x: car.x + steamStackOffset * dx, y: car.y + steamStackOffset * dy, dx, dy };
 }
 
-export function drawSteamPuff(ctx, puff, age) {
+export function drawSteamPuff(ctx: Context, puff: SteamPuff & { drift: number }, age: number) {
   const x = puff.x - 0.28 * age * puff.dx + puff.drift * age;
   const y = puff.y - (0.2 + 0.28 * puff.dy) * age;
   const radius = 0.036 + 0.092 * age;
@@ -823,13 +864,14 @@ export function drawSteamPuff(ctx, puff, age) {
   ctx.restore();
 }
 
-export function drawCar(ctx, car, x, y, angle = 0, boomAngle = 0) {
+export function drawCar(ctx: Context, car: Car, x: number, y: number, angle = 0, boomAngle = 0) {
   const color = COLORS[car.color][1];
   const edge = "#3c3930";
   const metal = "#343833";
   const glass = "#d3e4dc";
   const shine = "#fff9dd8c";
-  const shape = (x, y, w, h, r, fill = color) => rounded(ctx, x, y, w, h, r, fill, edge);
+  const shape = (x: number, y: number, w: number, h: number, r: Radii, fill: Paint = color) =>
+    rounded(ctx, x, y, w, h, r, fill, edge);
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle);

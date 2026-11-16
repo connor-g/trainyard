@@ -1,23 +1,36 @@
+type Synth = (t: number, noise: number, rumble: number) => number;
+
+interface RollingLoop {
+  source: AudioBufferSourceNode;
+  gain: GainNode;
+  volume: number;
+}
+
+declare global {
+  // Older Safari versions only provide the prefixed constructor.
+  var webkitAudioContext: typeof AudioContext | undefined;
+}
+
 const SILENT = 0.0001;
 const TAU = Math.PI * 2;
 const SAMPLE_RATE = 22050;
 const RAIL_VOLUME = 0.31;
 
-function envelope(time, start, attack, release) {
+function envelope(time: number, start: number, attack: number, release: number) {
   const age = time - start;
   if (age < 0 || age > attack + release) return 0;
   return age < attack ? age / attack : Math.pow(1 - (age - attack) / release, 2);
 }
 
-function beat(time, period, attack, release) {
+function beat(time: number, period: number, attack: number, release: number) {
   return envelope(time % period, 0, attack, release);
 }
 
-function tone(frequency, time) {
+function tone(frequency: number, time: number) {
   return Math.sin(TAU * frequency * time);
 }
 
-function railSound(t, noise, rumble) {
+function railSound(t: number, noise: number, rumble: number) {
   const joint = beat(t, 0.5, 0.007, 0.12) + 0.65 * beat(t + 0.09, 0.5, 0.005, 0.085);
   return 0.13 * rumble + joint * (0.17 * noise + 0.34 * rumble + 0.05 * tone(380, t));
 }
@@ -39,7 +52,7 @@ const rollingSounds = {
   snowplow(t, noise, rumble) {
     return (0.8 + 0.2 * tone(7, t)) * (0.14 * tone(52, t) + 0.07 * tone(104, t) + 0.3 * rumble);
   },
-};
+} satisfies Record<string, Synth>;
 
 const calls = {
   steam(t, noise, rumble) {
@@ -72,14 +85,19 @@ const calls = {
     return blast * (0.24 * tone(147, t) + 0.17 * tone(196, t) + 0.09 * tone(294, t) + 0.1 * rumble);
   },
   station(t) {
-    const ring = (time) =>
+    const ring = (time: number) =>
       envelope(time, 0, 0.012, 0.43) *
       (0.22 * tone(880, time) + 0.085 * tone(1320, time) + 0.045 * tone(2190, time));
     return ring(t) + ring(t - 0.19);
   },
-};
+} satisfies Record<string, Synth>;
+export type CallType = keyof typeof calls;
 
-function makeBuffer(context, seconds, synth, loop = false) {
+function isCall(type: string): type is CallType {
+  return Object.hasOwn(calls, type);
+}
+
+function makeBuffer(context: BaseAudioContext, seconds: number, synth: Synth, loop = false) {
   const length = Math.round(SAMPLE_RATE * seconds);
   const buffer = context.createBuffer(1, length, SAMPLE_RATE);
   const samples = buffer.getChannelData(0);
@@ -97,11 +115,11 @@ function makeBuffer(context, seconds, synth, loop = false) {
 
 export class TrainSound {
   enabled = true;
-  context;
-  master;
-  loops = new Map();
-  buffers = new Map();
-  horn;
+  context: AudioContext | undefined;
+  master: GainNode | undefined;
+  loops = new Map<string, RollingLoop>();
+  buffers = new Map<CallType, AudioBuffer>();
+  horn: AudioBufferSourceNode | null = null;
   speed = 1;
   hidden = false;
 
@@ -134,35 +152,35 @@ export class TrainSound {
     if (this.context.state !== "running") this.context.resume().catch(() => {});
   }
 
-  setEnabled(enabled) {
+  setEnabled(enabled: boolean) {
     this.enabled = enabled;
     if (enabled) this.unlock();
     this.updateMaster();
   }
 
-  setHidden(hidden) {
+  setHidden(hidden: boolean) {
     this.hidden = hidden;
     if (!hidden) this.unlock();
     this.updateMaster();
   }
 
   updateMaster() {
-    if (!this.master) return;
+    if (!this.master || !this.context) return;
     const audible = this.enabled && !this.hidden;
     this.master.gain.setTargetAtTime(audible ? 0.43 : 0, this.context.currentTime, 0.02);
     if (!audible) this.stopRolling();
   }
 
-  update(moving, speed) {
+  update(moving: ReadonlySet<string> | null, speed: number) {
     const context = this.context;
     if (!context) return;
-    const active = this.enabled && !this.hidden && moving?.size;
+    const active = this.enabled && !this.hidden && moving?.size ? moving : null;
     for (const [type, loop] of this.loops) {
       const volume =
-        active && (type === "rail" || moving.has(type))
+        active && (type === "rail" || active.has(type))
           ? type === "rail"
             ? RAIL_VOLUME
-            : 0.72 / Math.sqrt(moving.size)
+            : 0.72 / Math.sqrt(active.size)
           : SILENT;
       if (loop.volume !== volume) {
         loop.gain.gain.setTargetAtTime(volume, context.currentTime, 0.055);
@@ -178,16 +196,16 @@ export class TrainSound {
     this.update(null, this.speed);
   }
 
-  call(type) {
-    if (!this.enabled || this.hidden || !Object.hasOwn(calls, type)) return;
+  call(type: string) {
+    if (!this.enabled || this.hidden || !isCall(type)) return;
     this.unlock();
-    const context = this.context;
-    if (!context) return;
+    const { context, master } = this;
+    if (!context || !master) return;
     if (!this.buffers.has(type)) this.buffers.set(type, makeBuffer(context, 1.08, calls[type]));
     if (type !== "station" && this.horn) this.horn.stop();
     const horn = context.createBufferSource();
-    horn.buffer = this.buffers.get(type);
-    horn.connect(this.master);
+    horn.buffer = this.buffers.get(type) ?? null;
+    horn.connect(master);
     horn.onended = () => {
       if (this.horn === horn) this.horn = null;
       horn.disconnect();

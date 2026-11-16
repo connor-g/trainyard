@@ -11,13 +11,9 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
 
-    // Type-check only; Vite+ bundles the app and Node runs .mts directly by stripping types.
+    // Type-check only; Vite+ bundles the app and Node runs .ts directly by stripping types.
     "noEmit": true,
-    "allowImportingTsExtensions": true,
-
-    // Let TypeScript modules import the existing JavaScript. Opt a .mjs file into checking with `// @ts-check`.
-    "allowJs": true,
-    "checkJs": false
+    "allowImportingTsExtensions": true
   },
-  "include": ["*.mjs", "*.mts", "*.ts", "src/**/*.mjs", "src/**/*.mts", "src/**/*.ts"]
+  "include": ["*.ts", "src/**/*.ts"]
 }

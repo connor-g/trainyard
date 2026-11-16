@@ -2,7 +2,7 @@ import { defineConfig } from "vite-plus";
 
 export default defineConfig({
   server: {
-    // Forward save/load requests to the layouts service (`node layouts.mjs`) during development.
+    // Forward save/load requests to the layouts service (`node layouts.ts`) during development.
     proxy: { "/api/layouts": "http://127.0.0.1:3000" },
   },
   fmt: {},
