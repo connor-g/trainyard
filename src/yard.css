@@ -9,8 +9,8 @@
   --accent: #e7a348;
   --serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   font-family:
-    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
-    "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji";
   font-weight: 500;
   color: var(--ink);
   background: var(--paper);
