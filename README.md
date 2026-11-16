@@ -31,6 +31,10 @@ Run `docker compose down` to stop the app. Your saved yards stay on disk.
 
 Docker Compose runs the browser app through Nginx and a small Node.js service for saving and loading layouts. The built-in layouts are defined in [public/railway.mjs](public/railway.mjs) and [presets.mjs](presets.mjs). The service creates any missing presets at startup. It stores yard saves in `saved-yards/`, which Git ignores.
 
+## Type checking
+
+The repository is set up for TypeScript with strict typing, erasable syntax only, and isolated modules, targeting ES2025 to match the latest Safari. Run `npm install`, then `npm test`. New modules can be written as `.mts`. The existing `.mjs` files aren't checked until you add `// @ts-check` at the top of a file.
+
 ## License
 
 Trainyard is available under the [MIT license](LICENSE). The bundled [DM Sans](public/dm-sans-license.txt) and [DM Serif](public/dm-serif-license.txt) fonts use the SIL Open Font License 1.1.
