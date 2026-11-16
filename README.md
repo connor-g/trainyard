@@ -36,8 +36,8 @@ Docker Compose runs the browser app through Nginx and a small Node.js service fo
 The app is built with [Vite+](https://viteplus.dev/). Run `npm install`, then:
 
 - `npm run dev` starts the dev server. Run `npm run layouts` alongside it so saving and loading yards works; the dev server forwards `/api/layouts` to it.
-- `npm run build` builds the app into `dist/`, and `npm run preview` serves that build.
-- `npm run check` formats, lints, and type-checks the project.
+- `npm run build` builds the app into `dist/`.
+- `npm run check` checks formatting and runs lint and type checks. `npm run fix` formats the code and applies lint fixes.
 
 The app's source is in `src/`, with `index.html` at the repository root. Files in `public/` are copied to the build unchanged.
 

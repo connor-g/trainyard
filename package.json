@@ -4,10 +4,10 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "dev": "vp dev",
     "build": "vp build",
-    "preview": "vp preview",
     "check": "vp check",
+    "dev": "vp dev",
+    "fix": "vp check --fix",
     "layouts": "node layouts.mjs"
   },
   "devDependencies": {
