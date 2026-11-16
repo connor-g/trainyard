@@ -112,7 +112,7 @@ describe("couple", () => {
     const yard = yardWith(Array.from({ length: 15 }, (_, x) => [x + 1, 5, "straight"] as const));
     const train = trainOn(yard.board, 15, 5);
     train.cars.push(...Array.from({ length: 23 }, () => box));
-    expect(couple(yard.board, train, box)).toBe("A train can hold up to 24 cars.");
+    expect(couple(yard.board, train, box)).toBe("train-full");
   });
 
   test("refuses when the loop is too short", () => {
@@ -121,7 +121,7 @@ describe("couple", () => {
     expect(couple(yard.board, train, box)).toBeNull();
     expect(couple(yard.board, train, box)).toBeNull();
     expect(couple(yard.board, train, box)).toBeNull();
-    expect(couple(yard.board, train, box)).toBe("This loop is too short for another car.");
+    expect(couple(yard.board, train, box)).toBe("loop-too-short");
     expect(train.cars).toHaveLength(4);
   });
 
@@ -129,7 +129,7 @@ describe("couple", () => {
     const yard = yardWith([[5, 5, "straight"]]);
     const train = trainOn(yard.board, 5, 5);
     expect(couple(yard.board, train, box)).toBeNull();
-    expect(couple(yard.board, train, box)).toBe("Add more track before coupling another car.");
+    expect(couple(yard.board, train, box)).toBe("needs-more-track");
     expect(train.cars).toHaveLength(2);
   });
 

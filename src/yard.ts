@@ -2,6 +2,7 @@ import {
   COLS,
   ROWS,
   GRID_SIZES,
+  MAX_CARS,
   resizeLayout,
   BACKGROUNDS,
   TRACK,
@@ -35,6 +36,7 @@ import type {
   GridSize,
   Layout,
   Point,
+  Refusal,
   StockType,
   Tile,
   TrackEdit,
@@ -336,6 +338,22 @@ function commit(previous: Layout) {
   redrawRails();
   redrawStock();
 }
+const refusalMessages: Record<Refusal, string> = {
+  "square-occupied": "Wait for the train to clear this square.",
+  "needs-track": "Drop the car on a track piece.",
+  "needs-engine": "Add an engine to this track first.",
+  "engine-blocked": "Drop it onto the train to couple it, or try a clear square.",
+  "train-full": "A train can hold up to " + MAX_CARS + " cars.",
+  "loop-too-short": "This loop is too short for another car.",
+  "needs-more-track": "Add more track before coupling another car.",
+  "too-big-for-size": "This yard is too wide or tall for that size.",
+  "no-change": "",
+};
+
+function refuse(reason: Refusal) {
+  if (refusalMessages[reason]) notify(refusalMessages[reason]);
+}
+
 function notify(message: string) {
   const toast = $("toast");
   toast.hidden = false;
@@ -755,7 +773,7 @@ function dropPiece(cell: Cell, item: TrackMove | CarPiece) {
   if (movesTrack(item)) {
     if (item.tile && index === item.index) return;
     const edits = trackEdits(item, index);
-    if (!edits) return notify("Wait for the train to clear this square.");
+    if (!edits) return refuse("square-occupied");
     if (
       !item.tile &&
       edits.length === 1 &&
@@ -767,7 +785,7 @@ function dropPiece(cell: Cell, item: TrackMove | CarPiece) {
     for (const [square, track] of edits) layout.board.grid[square] = track;
     return commit(previous);
   }
-  if (!tile) return notify("Drop the car on a track piece.");
+  if (!tile) return refuse("needs-track");
   const car: Car = { type: item.type, color: item.color };
   const hit = hitCar(cell, isEngine(item.type));
   const previous = snapshot();
@@ -779,20 +797,20 @@ function dropPiece(cell: Cell, item: TrackMove | CarPiece) {
         cars.some((other) => Math.hypot(other.x - engine.x, other.y - engine.y) < 0.66),
       )
     ) {
-      return notify("Drop it onto the train to couple it, or try a clear square.");
+      return refuse("engine-blocked");
     }
     layout.trains.push(train);
   } else {
     const train = hit
       ? layout.trains[hit.trainIndex]
       : nearestTrain(layout.board, layout.trains, index, cell.x - cell.column, cell.y - cell.row);
-    if (!train) return notify("Add an engine to this track first.");
+    if (!train) return refuse("needs-engine");
     const tenderPosition =
       item.type === "tender" && hit && train.cars[hit.carIndex]?.type === "steam"
         ? hit.carIndex + 1
         : undefined;
-    const message = couple(layout.board, train, car, tenderPosition);
-    if (message) return notify(message);
+    const refusal = couple(layout.board, train, car, tenderPosition);
+    if (refusal) return refuse(refusal);
   }
   commit(previous);
 }
@@ -802,8 +820,7 @@ function turnPiece(index: number) {
   if (!tile) return;
   const rotated = rotateTrack(layout.board, index);
   if (!rotated) return;
-  if (rotated.turn !== tile.turn && occupiedSquares().has(index))
-    return notify("Wait for the train to clear this square.");
+  if (rotated.turn !== tile.turn && occupiedSquares().has(index)) return refuse("square-occupied");
   const previous = snapshot();
   layout.board.grid[index] = rotated;
   commit(previous);
@@ -821,7 +838,7 @@ function removePiece(item: BoardItem) {
     return commit(previous);
   }
   if (!layout.board.grid[index]) return;
-  if (occupiedSquares().has(index)) return notify("Wait for the train to clear this square.");
+  if (occupiedSquares().has(index)) return refuse("square-occupied");
   const previous = snapshot();
   layout.board.grid[index] = null;
   commit(previous);

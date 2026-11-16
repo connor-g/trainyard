@@ -102,6 +102,20 @@ export const initialSimState = (): SimState => ({
   crossingArrival: 0,
 });
 
+/** Why an edit was refused. The UI decides how to word it. */
+export type Refusal =
+  | "square-occupied"
+  | "needs-track"
+  | "needs-engine"
+  | "engine-blocked"
+  | "train-full"
+  | "loop-too-short"
+  | "needs-more-track"
+  | "too-big-for-size"
+  | "no-change";
+
+export const MAX_CARS = 24;
+
 export const COLS = 17;
 export const ROWS = 14;
 export const GRID_SIZES: (GridSize & { label: string })[] = [
@@ -149,7 +163,6 @@ const STEPS: Point[] = [
 const OPPOSITE: readonly Port[] = [2, 3, 0, 1];
 const QUARTER_TURN = Math.PI / 2;
 const CAR_GAP = 0.7;
-const MAX_CARS = 24;
 const STATION_STOP_SECONDS = 1.6;
 const CROSSING_CLEARANCE = 0.38;
 const CROSSING_STOP_DISTANCE = 0.42;
@@ -527,8 +540,8 @@ export function couple(
   train: Train,
   car: Car,
   insertAt = train.cars.length,
-): string | null {
-  if (train.cars.length >= MAX_CARS) return "A train can hold up to " + MAX_CARS + " cars.";
+): Refusal | null {
+  if (train.cars.length >= MAX_CARS) return "train-full";
   let path: Segment | null = head(train);
   const visited = new Map<string, number>();
   let distance = 0;
@@ -536,8 +549,7 @@ export function couple(
     const key = pathKey(path);
     if (visited.has(key)) {
       const circuit = distance - visited.get(key)!;
-      if (circuit < (train.cars.length + 1) * CAR_GAP)
-        return "This loop is too short for another car.";
+      if (circuit < (train.cars.length + 1) * CAR_GAP) return "loop-too-short";
       break;
     }
     visited.set(key, distance);
@@ -552,8 +564,7 @@ export function couple(
       withCar.progress +
       withCar.history.slice(0, -1).reduce((total, segment) => total + segment.length, 0);
     const ahead = Math.max(0, distance - withCar.progress - 0.29);
-    if (behind + ahead < train.cars.length * CAR_GAP)
-      return "Add more track before coupling another car.";
+    if (behind + ahead < train.cars.length * CAR_GAP) return "needs-more-track";
   }
   train.cars = withCar.cars;
   train.history = withCar.history;
