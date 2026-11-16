@@ -145,6 +145,55 @@
         <h2 id="library-title">Saved yards</h2>
         <button type="button" class="close" aria-label="Close" autofocus></button>
       </div>
+      <section class="library-section" aria-labelledby="storage-title">
+        <label for="library-select" id="storage-title">Library</label>
+        <div class="library-row">
+          <select id="library-select"></select>
+          <button type="button" class="layout-option" id="remove-library" hidden>Remove</button>
+        </div>
+        <details id="add-library" class="add-library">
+          <summary>Add an S3 library</summary>
+          <form id="s3-library" class="s3-fields">
+            <label
+              >Name<input
+                name="name"
+                required
+                maxlength="48"
+                autocomplete="off"
+                placeholder="Family yards"
+            /></label>
+            <label
+              >Bucket URL<input
+                name="bucketUrl"
+                type="url"
+                required
+                autocomplete="off"
+                placeholder="https://my-bucket.s3.us-east-1.amazonaws.com"
+            /></label>
+            <label
+              >Region<input name="region" autocomplete="off" placeholder="From the URL"
+            /></label>
+            <label
+              >Key prefix<input name="keyPrefix" autocomplete="off" placeholder="trainyard/"
+            /></label>
+            <label
+              >Access key ID<input
+                name="accessKeyId"
+                required
+                autocomplete="off"
+                spellcheck="false"
+            /></label>
+            <label
+              >Secret access key<input
+                name="secretAccessKey"
+                type="password"
+                required
+                autocomplete="off"
+            /></label>
+            <button type="submit" class="layout-option" id="add-s3">Add library</button>
+          </form>
+        </details>
+      </section>
       <form id="save-layout" class="library-section">
         <label for="save-name">Save current yard</label>
         <div class="library-row">
