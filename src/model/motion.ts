@@ -1,6 +1,5 @@
 import { pathKey } from "../railway.ts";
 import type { CarPosition, Segment } from "../railway.ts";
-import { frozen } from "./freeze.ts";
 import {
   CAR_GAP,
   carPositionsOn,
@@ -30,7 +29,7 @@ export function initialMotion(yard: Yard): Motion {
     });
     placed.push(cars);
   }
-  return frozen(motion);
+  return motion;
 }
 
 /**
@@ -81,7 +80,7 @@ export function reconcile(yard: Yard, motion: Motion): Motion {
     place(train, { ...start, held: clashes(train, start) });
   }
   // Keep yard order, so trains are drawn and stepped in the same order as before.
-  return frozen(new Map(yard.trains.map((train) => [train.id, placed.get(train.id)!])));
+  return new Map(yard.trains.map((train) => [train.id, placed.get(train.id)!]));
 }
 
 /** Compares positions by segment keys, progress and held, not by object identity. */
@@ -110,5 +109,5 @@ export function remapMotion(motion: Motion, remap: (index: number) => number): M
     const kept = history.slice(history.findLastIndex((piece) => piece.index === -1) + 1);
     if (kept.length) next.set(id, { ...current, history: kept });
   }
-  return frozen(next);
+  return next;
 }

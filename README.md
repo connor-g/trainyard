@@ -37,12 +37,12 @@ The app is built with [Vite+](https://viteplus.dev/). Run `npm install`, then:
 - `npm run dev` starts the dev server.
 - `npm run build` builds the app into `dist/`.
 - `npm run check` checks formatting and runs lint and type checks. `npm run fix` formats the code and applies lint fixes.
-- `npm test` runs the tests in `test/`, including recorded 30-second runs of every built-in yard that fail on any change in how trains move.
+- `npm test` runs the tests in `test/`. They check game rules and state (edits, undo, collisions, stations and saves) rather than recording exact train positions.
 
 The app's source is in `src/`, with `index.html` at the repository root. Files in `public/` are copied to the build unchanged.
 
 - `src/railway.ts` holds the catalogs and track geometry.
-- `src/model/` is the game model, with no state of its own. A `Yard` is what the player built (the board, background and each train's cars and start path) and `Motion` is where the trains are right now. Both are immutable, and frozen in development and tests so accidental changes throw. `applyEdit` turns an edit into a new yard and motion, and `step` advances the trains.
+- `src/model/` is the game model, with no state of its own. A `Yard` is what the player built (the board, background and each train's cars and start path) and `Motion` is where the trains are right now. Both are immutable: their types are deeply `readonly`, so the compiler rejects changes in place. `applyEdit` turns an edit into a new yard and motion, and `step` advances the trains.
 - `src/store.ts` holds the current yard, the motion and an in-memory undo stack. Undo reverses one edit and never rewinds train movement.
 - `src/saves.ts` reads and writes saved yards in local storage.
 - `src/yard.ts` is the page: input, rendering, sound and dialogs.

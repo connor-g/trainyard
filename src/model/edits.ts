@@ -21,7 +21,6 @@ import type {
   TrackEdit,
   TrackType,
 } from "../railway.ts";
-import { frozen } from "./freeze.ts";
 import { initialMotion } from "./motion.ts";
 import { carAt, carPositions, isValidStart, occupiedSquares } from "./queries.ts";
 import {
@@ -121,8 +120,8 @@ function settle(yard: Yard, motion: Motion, remap?: (index: number) => number): 
   const changed = trains.some((train, i) => train !== yard.trains[i]);
   return {
     ok: true,
-    yard: frozen(changed ? { ...yard, trains } : yard),
-    motion: frozen(nextMotion),
+    yard: changed ? { ...yard, trains } : yard,
+    motion: nextMotion,
     ...(remap && { remap }),
   };
 }
@@ -397,10 +396,10 @@ function resize(yard: Yard, motion: Motion, { cols, rows }: GridSize): EditResul
 
 function replace(yard: Yard): EditResult {
   // Fresh ids mean positions from another yard can never be mistaken for this one's.
-  const loaded = frozen({
+  const loaded = {
     ...yard,
     trains: yard.trains.map((train) => ({ ...train, id: nextTrainId() })),
-  });
+  };
   return { ok: true, yard: loaded, motion: initialMotion(loaded) };
 }
 
@@ -421,12 +420,12 @@ export function applyEdit(yard: Yard, motion: Motion, edit: Edit): EditResult {
       return removeCar(yard, motion, edit.car);
     case "setBackground":
       if (edit.background === yard.background) return refuse("no-change");
-      return { ok: true, yard: frozen({ ...yard, background: edit.background }), motion };
+      return { ok: true, yard: { ...yard, background: edit.background }, motion };
     case "resize":
       return resize(yard, motion, edit.size);
     case "replace":
       return replace(edit.yard);
     case "rename":
-      return { ok: true, yard: frozen({ ...yard, name: edit.name }), motion };
+      return { ok: true, yard: { ...yard, name: edit.name }, motion };
   }
 }

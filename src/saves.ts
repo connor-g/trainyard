@@ -1,7 +1,6 @@
 /** Reads and writes yards in local storage. A save holds the yard as built, with each train at its start. */
 import { GRID_SIZES, STOCK, TRACK, isBackground } from "./railway.ts";
 import type { Background, Car, SegmentRef, Tile } from "./railway.ts";
-import { frozen } from "./model/freeze.ts";
 import { isValidStart } from "./model/queries.ts";
 import { MAX_CARS } from "./model/train.ts";
 import { nextTrainId } from "./model/types.ts";
@@ -79,7 +78,7 @@ export function fromSaved(value: unknown): Yard | null {
       isValidStart(board, train.cars.length, train.start),
   );
   if (!valid) return null;
-  return frozen({
+  return {
     name: value.name,
     board,
     background: value.background,
@@ -88,5 +87,5 @@ export function fromSaved(value: unknown): Yard | null {
       cars,
       start,
     })),
-  });
+  };
 }

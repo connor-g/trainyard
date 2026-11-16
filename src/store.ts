@@ -1,5 +1,4 @@
 import { applyEdit } from "./model/edits.ts";
-import { frozen } from "./model/freeze.ts";
 import type { Edit, EditResult } from "./model/edits.ts";
 import { initialMotion, reconcile, remapMotion } from "./model/motion.ts";
 import { initialSimState, step } from "./model/simulation.ts";
@@ -86,7 +85,7 @@ export function createStore(initial: Yard, { undoLimit = 100 } = {}): Store {
       yard =
         entry.edit.type === "replace" || entry.yard.name === yard.name
           ? entry.yard
-          : frozen({ ...entry.yard, name: yard.name });
+          : { ...entry.yard, name: yard.name };
       motion = reconcile(yard, entry.remap ? remapMotion(motion, entry.remap) : motion);
       notify({ yard, previous });
     },

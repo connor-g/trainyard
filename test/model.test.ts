@@ -246,6 +246,18 @@ describe("step", () => {
     expect(xs.at(-1)).toBeGreaterThan(4.5);
   });
 
+  test("a train stops behind a train parked at the end of the line", () => {
+    let state = addTrain(stateOf(yardWith(straightRow(1, 10, 5))), 9, 5, [diesel]);
+    state = addTrain(state, 3, 5, [diesel, box]);
+    const [parked, following] = state.yard.trains;
+    state = run(state, 8);
+    const gap = closestApproach(positionsOf(state, following.id), positionsOf(state, parked.id));
+    expect(gap).toBeGreaterThanOrEqual(0.58);
+    expect(gap).toBeLessThan(0.62);
+    // The parked train sits at the dead end, short of the edge.
+    expect(positionsOf(state, parked.id)[0].x).toBeCloseTo(10.71);
+  });
+
   test("speed 0 changes nothing", () => {
     const state = stateOf(sampleLayout());
     const sim = initialSimState();
@@ -402,19 +414,4 @@ describe("invariants under random edits", () => {
       expect(edits).toBeGreaterThan(50);
     });
   }
-});
-
-describe("immutability", () => {
-  test("yards and motion are frozen", () => {
-    const state = addTrain(stateOf(sampleLayout()), 8, 2, [diesel]);
-    expect(() => {
-      (state.yard.trains as unknown as unknown[]).push(1);
-    }).toThrow();
-    expect(() => {
-      (state.motion as Map<TrainId, unknown>).set(1 as TrainId, null);
-    }).toThrow();
-    expect(() => {
-      (state.yard.board.grid as unknown as unknown[])[0] = null;
-    }).toThrow();
-  });
 });

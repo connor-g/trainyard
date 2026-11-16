@@ -1,6 +1,5 @@
 import { isEngine, neighbor, onward, pathKey, position } from "../railway.ts";
 import type { Board, Car, CarPosition, Segment, StockType } from "../railway.ts";
-import { frozen } from "./freeze.ts";
 import {
   CAR_GAP,
   COLLISION,
@@ -282,8 +281,8 @@ export function step(
     nextMotion.set(train.id, unchanged ? before : { history, progress, held });
   }
   return {
-    motion: frozen(nextMotion),
-    sim: frozen({ stationStops, crossingRequests: requests, crossingArrival: arrival.next }),
+    motion: nextMotion,
+    sim: { stationStops, crossingRequests: requests, crossingArrival: arrival.next },
     events: { movingEngines, movingTrains, stationArrivals },
   };
 }

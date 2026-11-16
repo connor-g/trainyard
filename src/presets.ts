@@ -9,7 +9,6 @@ import type {
   Tile,
   TrackType,
 } from "./railway.ts";
-import { frozen } from "./model/freeze.ts";
 import { MAX_CARS, extendTail, isValidPath, placeCar, toRefs } from "./model/train.ts";
 import { nextTrainId } from "./model/types.ts";
 import type { TrainSpec, Yard } from "./model/types.ts";
@@ -23,7 +22,7 @@ function stepPort(x: number, y: number, otherX: number, otherY: number) {
   return otherX > x ? 1 : 3;
 }
 
-/** A board being built; presets fill it in before it is frozen into a yard. */
+/** A board being built; presets fill it in before it becomes a yard. */
 interface Draft {
   name: string;
   grid: (Tile | null)[];
@@ -81,12 +80,12 @@ function presetTrain(board: Board, name: string, [x, y, cars, reverse = false]: 
 
 function finish(draft: Draft, background: Background, trains: PresetTrain[]): Yard {
   const board: Board = { grid: draft.grid, cols: draft.cols, rows: draft.grid.length / draft.cols };
-  return frozen({
+  return {
     name: draft.name,
     board,
     background,
     trains: trains.map((train) => presetTrain(board, draft.name, train)),
-  });
+  };
 }
 
 function draft(name: string): Draft {
@@ -272,5 +271,5 @@ export function scenicPresets(): Yard[] {
 }
 
 export function blankYard(size: GridSize = GRID_SIZES[0], background: Background = "plain"): Yard {
-  return frozen({ name: "New Layout", board: blankBoard(size), background, trains: [] });
+  return { name: "New Layout", board: blankBoard(size), background, trains: [] };
 }
