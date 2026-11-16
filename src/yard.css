@@ -210,8 +210,8 @@
   }
 
   .icon {
-    inline-size: 20px;
-    block-size: 20px;
+    inline-size: 24px;
+    block-size: 24px;
     flex: none;
   }
 }
@@ -262,7 +262,7 @@
     @media (width <= 1100px) {
       --gutter-inline: 12px;
       grid-template-columns: 272px minmax(0, 1fr);
-      gap: 12px;
+      gap: 16px;
     }
 
     @media (width <= 1100px) and (orientation: portrait) {
@@ -304,7 +304,7 @@
     padding: 12px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 16px;
     overflow: clip;
 
     @media (width <= 1100px) and (orientation: portrait) {
@@ -323,7 +323,7 @@
 
     @media (height <= 540px) and (orientation: landscape) {
       padding: 8px;
-      gap: 4px;
+      gap: 8px;
     }
   }
 
@@ -331,7 +331,7 @@
     display: flex;
     flex-direction: column;
     padding: 16px;
-    gap: 12px;
+    gap: 16px;
 
     @media (width <= 1100px) {
       padding: 12px;
@@ -350,7 +350,7 @@
 
     @media (height <= 540px) and (orientation: landscape) {
       padding: 8px;
-      gap: 4px;
+      gap: 8px;
     }
   }
 }
@@ -361,7 +361,7 @@
   .brand {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 16px;
     min-inline-size: 0;
 
     & h1 {
@@ -390,11 +390,11 @@
   .top-actions {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 16px;
     min-inline-size: 0;
 
     @media (width <= 560px) and (orientation: portrait) {
-      gap: 4px;
+      gap: 8px;
 
       & .button {
         padding-inline: 8px;
@@ -411,13 +411,13 @@
     min-inline-size: 0;
 
     @media (width <= 560px) and (orientation: portrait) {
-      gap: 4px;
+      gap: 8px;
     }
   }
 
   #layout-name {
     font: var(--regular) var(--text-title2) / 28px var(--serif);
-    max-inline-size: min(32vw, 430px);
+    max-inline-size: min(32vw, 432px);
     min-inline-size: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -476,7 +476,7 @@
   .tabs {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 4px;
+    gap: 0;
     flex: none;
     padding: 4px;
     border: 1px solid var(--line);
@@ -525,7 +525,7 @@
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      gap: 4px;
+      gap: 8px;
     }
   }
 
@@ -534,7 +534,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 8px;
     padding: 4px 4px 8px;
     border: 1px solid var(--line);
     border-radius: var(--radius-card);
@@ -609,7 +609,7 @@
       align-items: stretch;
       justify-content: stretch;
       padding: 4px 4px 4px;
-      gap: 4px;
+      gap: 8px;
       font-size: clamp(var(--text-callout), 1.55vw, var(--text-title3));
       line-height: 1.1;
 
@@ -638,7 +638,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin: 0 4px 4px;
+    margin: 0 0 8px;
+    padding-inline: 4px;
 
     & span {
       color: var(--muted);
@@ -649,7 +650,7 @@
   .swatches {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 4px;
+    gap: 8px;
   }
 
   .swatch {
@@ -779,7 +780,7 @@
   /* `resize()` in yard.ts reads the first grid track sizes as the coordinate gutters. */
   .map {
     --row-labels: 24px;
-    --column-labels: 20px;
+    --column-labels: 16px;
 
     display: grid;
     grid-template-columns: var(--row-labels) minmax(0, 1fr);
@@ -863,6 +864,16 @@
     align-items: center;
     gap: 8px;
     min-block-size: 40px;
+
+    /* On narrow phones the hint gets its own row instead of wrapping into a tall column. */
+    @media (width <= 560px) and (orientation: portrait) {
+      flex-wrap: wrap;
+      row-gap: 8px;
+
+      & #tool-hint {
+        flex-basis: 100%;
+      }
+    }
   }
 
   #tool-hint {
@@ -891,13 +902,13 @@
     display: flex;
     flex: none;
     align-items: center;
-    gap: 4px;
+    gap: 8px;
     white-space: nowrap;
     font-size: var(--text-footnote);
     color: var(--muted);
 
     & span {
-      margin-inline-end: 4px;
+      margin-inline-end: 8px;
 
       @media (width <= 560px) and (orientation: portrait) {
         display: none;
@@ -947,7 +958,7 @@
 
   .toast {
     position: absolute;
-    inset-block-end: 18px;
+    inset-block-end: 16px;
     inset-inline-start: 50%;
     translate: -50% 0;
     z-index: 2;
@@ -1026,7 +1037,7 @@
   }
 
   .layout-heading {
-    margin: 12px 0 8px;
+    margin: 16px 0 8px;
   }
 
   .background-options {
@@ -1038,7 +1049,7 @@
   .background-option {
     display: grid;
     justify-items: center;
-    gap: 4px;
+    gap: 8px;
     padding: 4px;
     min-inline-size: 0;
     border: 1px solid var(--line);
@@ -1080,12 +1091,12 @@
   .grid-options {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 4px;
+    gap: 8px;
   }
 
   .grid-option {
     flex-direction: column;
-    gap: 4px;
+    gap: 8px;
     min-block-size: 48px;
     line-height: 1.1;
     text-align: center;
@@ -1104,7 +1115,7 @@
   .library-button {
     inline-size: 100%;
     min-block-size: var(--tap);
-    margin-block-start: 12px;
+    margin-block-start: 16px;
     background: var(--positive-fill);
     border-color: var(--positive-border);
     color: var(--green);
@@ -1114,7 +1125,7 @@
     display: grid;
     grid-template-columns: 1.3fr 1fr;
     gap: 8px;
-    margin-block-start: 12px;
+    margin-block-start: 16px;
   }
 
   #layout-dialog {
@@ -1127,7 +1138,7 @@
       padding: 12px;
 
       & .layout-heading {
-        margin: 8px 0 4px;
+        margin: 8px 0 8px;
       }
       & .layout-option {
         min-block-size: 40px;
@@ -1136,7 +1147,7 @@
         margin-block-start: 8px;
       }
       & .background-option canvas {
-        max-block-size: 34px;
+        max-block-size: 32px;
         object-fit: cover;
       }
     }
@@ -1147,7 +1158,7 @@
 
     & label {
       display: block;
-      margin-block-end: 4px;
+      margin-block-end: 8px;
       font-size: var(--text-subhead);
       font-weight: var(--semibold);
     }
@@ -1199,7 +1210,7 @@
   }
 
   .library-note {
-    margin: 12px 0 0;
+    margin: 16px 0 0;
     font-size: var(--text-footnote);
     color: var(--muted);
 
@@ -1219,7 +1230,7 @@
     display: grid;
     justify-items: stretch;
     align-content: start;
-    gap: 4px;
+    gap: 8px;
     min-inline-size: 0;
     padding: 4px;
     border: 1px solid var(--line);
@@ -1254,7 +1265,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 12px;
+    gap: 16px;
     margin-block-start: 8px;
     font-size: var(--text-footnote);
     color: var(--muted);
