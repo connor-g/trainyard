@@ -46,9 +46,9 @@ const YARD_PREFIX = "yards/";
 const YARD_SUFFIX = ".json";
 
 /** Yards are keyed by their name, ignoring case, so saving under an existing name replaces it. */
-export const yardNameKey = (name: string) => name.toLowerCase();
+export const yardNameKey = (name: string): string => name.toLowerCase();
 
-export const yardBlobKey = (name: string) => YARD_PREFIX + yardNameKey(name) + YARD_SUFFIX;
+export const yardBlobKey = (name: string): string => YARD_PREFIX + yardNameKey(name) + YARD_SUFFIX;
 
 /** Reads and writes saved yards in one library's blob storage. */
 export class YardLibrary {
@@ -158,7 +158,10 @@ export function readLibraries(settings: SettingsStore): LibrarySettings[] {
 }
 
 /** Writes the libraries the player added. The default is implied and never written. */
-export function writeLibraries(settings: SettingsStore, libraries: readonly LibrarySettings[]) {
+export function writeLibraries(
+  settings: SettingsStore,
+  libraries: readonly LibrarySettings[],
+): void {
   const added = libraries.filter((library) => library.id !== DEFAULT_LIBRARY.id);
   settings.setItem(LIBRARIES_KEY, JSON.stringify(added));
 }
@@ -172,7 +175,7 @@ export function activeLibrary(
   return libraries.find((library) => library.id === id) ?? DEFAULT_LIBRARY;
 }
 
-export function setActiveLibrary(settings: SettingsStore, id: string) {
+export function setActiveLibrary(settings: SettingsStore, id: string): void {
   if (id === DEFAULT_LIBRARY.id) settings.removeItem(ACTIVE_KEY);
   else settings.setItem(ACTIVE_KEY, id);
 }
@@ -186,7 +189,7 @@ export function addLibrary(settings: SettingsStore, library: NewLibrary): Librar
 }
 
 /** Removes a library the player added. Its yards stay where they are. */
-export function removeLibrary(settings: SettingsStore, id: string) {
+export function removeLibrary(settings: SettingsStore, id: string): void {
   writeLibraries(
     settings,
     readLibraries(settings).filter((library) => library.id !== id),

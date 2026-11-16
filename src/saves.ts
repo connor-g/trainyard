@@ -50,7 +50,11 @@ export function toSaved({ name, board, background, trains }: Yard): SavedYard {
 }
 
 /** An empty yard in its saved shape. */
-export function blankSaved(name: string, { cols, rows }: GridSize, background: Background) {
+export function blankSaved(
+  name: string,
+  { cols, rows }: GridSize,
+  background: Background,
+): SavedYard {
   return {
     name,
     cols,
@@ -58,7 +62,7 @@ export function blankSaved(name: string, { cols, rows }: GridSize, background: B
     grid: Array<null>(cols * rows).fill(null),
     background,
     trains: [],
-  } satisfies SavedYard;
+  };
 }
 
 const isKey = <T extends object>(catalog: T, value: unknown): value is keyof T =>

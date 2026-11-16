@@ -10,7 +10,7 @@ import { applyEdit } from "../model/edits.ts";
 import type { Edit, EditResult } from "../model/edits.ts";
 import { carAt } from "../model/queries.ts";
 import { carPositionsOn, placeCar } from "../model/train.ts";
-import type { BoardPoint, CarRef, TrainId, Yard } from "../model/types.ts";
+import type { BoardPoint, CarRef, Motion, TrainId, Yard } from "../model/types.ts";
 import { sampleLayout, scenicPresets } from "../presets.ts";
 import { indexAt } from "../railway.ts";
 import type { CarPosition, Tile } from "../railway.ts";
@@ -21,6 +21,7 @@ import type {
   FromWorker,
   HeldPiece,
   PageEdit,
+  PictureSpec,
   Request,
   RequestType,
   Requests,
@@ -62,13 +63,23 @@ export interface EngineOptions {
   readonly clock?: () => number;
 }
 
+export interface Engine {
+  readonly yard: Yard;
+  readonly motion: Motion;
+  handle(message: ToWorker): void;
+  /** Advances the trains and draws a frame if anything changed. */
+  frame(now?: number): void;
+  /** Tells the page what to show, once it is listening. */
+  start(): void;
+}
+
 const NO_TRAINS: ReadonlySet<TrainId> = new Set();
 
 export function createEngine(
   renderer: Renderer,
   post: (message: FromWorker) => void,
   { initial = sampleLayout(), clock = () => performance.now() }: EngineOptions = {},
-) {
+): Engine {
   const store = createStore(initial);
   let speed = 1;
   let held: { item: Grabbed; moved: boolean } | null = null;
@@ -257,13 +268,7 @@ export function createEngine(
       case "grab":
         return reply<"grab">(request.id, grab(request.from));
       case "picture":
-        // A picture that fails, synchronously or not, is reported like any other failure.
-        return void Promise.resolve(request.spec)
-          .then((spec) => renderer.picture(spec))
-          .then(
-            (blob) => reply<"picture">(request.id, blob),
-            (error: unknown) => fail(request.id, error),
-          );
+        return void answerPicture(request.id, request.spec);
       case "yard":
         return reply<"yard">(request.id, toSaved(store.yard));
       case "builtIns":
@@ -273,6 +278,17 @@ export function createEngine(
 
   function fail(id: number, error: unknown) {
     post({ type: "failed", id, error: error instanceof Error ? error.message : String(error) });
+  }
+
+  async function answerPicture(id: number, spec: PictureSpec) {
+    let blob: Blob;
+    try {
+      blob = await renderer.picture(spec);
+    } catch (error: unknown) {
+      // A picture that fails, synchronously or not, is reported like any other failure.
+      return fail(id, error);
+    }
+    reply<"picture">(id, blob);
   }
 
   function release(at: BoardFraction | null, remove: boolean) {
@@ -364,5 +380,3 @@ export function createEngine(
     },
   };
 }
-
-export type Engine = ReturnType<typeof createEngine>;

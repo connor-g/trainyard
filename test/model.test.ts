@@ -18,6 +18,7 @@ import {
 import { nextTrainId } from "../src/model/types.ts";
 import type { Motion, TrainId, Yard } from "../src/model/types.ts";
 import { sampleLayout, scenicPresets } from "../src/presets.ts";
+import type { CarPosition } from "../src/railway.ts";
 import {
   addTrain,
   at,
@@ -313,16 +314,22 @@ describe("overlapping trains", () => {
     let sim = initialSimState();
     const start = positionsOf(state, second.id)[0];
     let released = -1;
+    const heldAt: CarPosition[] = [];
+    const overlapsOnceReleased: number[] = [];
     for (let frame = 0; frame < 240; frame += 1) {
       ({ motion: state.motion, sim } = step(state.yard, state.motion, sim, STEP, 1));
       const held = state.motion.get(second.id)!.held;
       const [engine] = positionsOf(state, second.id);
       expect(positionsOf(state, second.id)).toHaveLength(1);
-      if (held) expect(engine).toEqual(start);
-      if (!held && released < 0) released = frame;
-      // A train is released on the first step after nothing overlaps it.
-      if (!held) expect(overlappingPairs(state.yard, state.motion).size).toBe(0);
+      if (held) heldAt.push(engine);
+      else {
+        if (released < 0) released = frame;
+        overlapsOnceReleased.push(overlappingPairs(state.yard, state.motion).size);
+      }
     }
+    expect(heldAt).toEqual(heldAt.map(() => start));
+    // A train is released on the first step after nothing overlaps it.
+    expect(overlapsOnceReleased.filter((size) => size > 0)).toEqual([]);
     expect(released).toBeGreaterThan(0);
     expect(positionsOf(state, second.id)[0].x).toBeGreaterThan(start.x + 1);
     // The released train follows rather than catching up.
@@ -408,10 +415,12 @@ describe("invariants under random edits", () => {
           edits += 1;
           state = { yard: result.yard, motion: result.motion };
           expectInvariants(state.yard, state.motion);
-          // Edits never create overlaps.
-          for (const pair of overlappingPairs(state.yard, state.motion))
-            expect(before.has(pair), change.type).toBe(true);
         }
+        // Edits never create overlaps.
+        const created = result.ok
+          ? [...overlappingPairs(state.yard, state.motion)].filter((pair) => !before.has(pair))
+          : [];
+        expect(created, change.type).toEqual([]);
         const frames = Math.floor(rand() * 90);
         for (let frame = 0; frame < frames; frame += 1) {
           const previous = overlappingPairs(state.yard, state.motion);

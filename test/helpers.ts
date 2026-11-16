@@ -2,11 +2,11 @@ import type { Car, TrackType } from "../src/catalog.ts";
 import { applyEdit } from "../src/model/edits.ts";
 import type { Edit, EditResult } from "../src/model/edits.ts";
 import { initialMotion } from "../src/model/motion.ts";
-import type { Motion, Yard } from "../src/model/types.ts";
+import type { BoardPoint, Motion, TrainSpec, Yard } from "../src/model/types.ts";
 import { COLS, blankBoard, indexAt } from "../src/railway.ts";
 import type { Tile } from "../src/railway.ts";
 
-export const at = (x: number, y: number) => indexAt(x, y, COLS);
+export const at = (x: number, y: number): number => indexAt(x, y, COLS);
 
 export type Piece = readonly [x: number, y: number, type: TrackType, turn?: number];
 
@@ -42,7 +42,7 @@ export function edit(state: State, change: Edit): State & { result: EditResult }
   return { yard: result.yard, motion: result.motion, result };
 }
 
-export const centre = (x: number, y: number) => ({ index: at(x, y), x: 0.5, y: 0.5 });
+export const centre = (x: number, y: number): BoardPoint => ({ index: at(x, y), x: 0.5, y: 0.5 });
 
 /** Drops an engine at the centre of (x, y), then drops each further car onto it. */
 export function addTrain(state: State, x: number, y: number, cars: readonly Car[]): State {
@@ -51,4 +51,5 @@ export function addTrain(state: State, x: number, y: number, cars: readonly Car[
   return next;
 }
 
-export const lastTrain = (state: State) => state.yard.trains[state.yard.trains.length - 1];
+export const lastTrain = (state: State): TrainSpec =>
+  state.yard.trains[state.yard.trains.length - 1];

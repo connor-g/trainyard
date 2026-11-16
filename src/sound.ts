@@ -106,6 +106,15 @@ function makeBuffer(context: BaseAudioContext, seconds: number, synth: Synth, lo
   return buffer;
 }
 
+/** Browsers start audio suspended until the page is used; a refused resume is retried on the next unlock. */
+async function resume(context: AudioContext): Promise<void> {
+  try {
+    await context.resume();
+  } catch {
+    // The next unlock tries again.
+  }
+}
+
 export class TrainSound {
   enabled = true;
   context: AudioContext | undefined;
@@ -116,7 +125,7 @@ export class TrainSound {
   speed = 1;
   hidden = false;
 
-  unlock() {
+  unlock(): void {
     if (!this.enabled || this.hidden) return;
     const AudioContext = globalThis.AudioContext ?? globalThis.webkitAudioContext;
     if (!AudioContext) return;
@@ -142,29 +151,29 @@ export class TrainSound {
         this.loops.set(name, { source, gain, volume: SILENT });
       }
     }
-    if (this.context.state !== "running") this.context.resume().catch(() => {});
+    if (this.context.state !== "running") void resume(this.context);
   }
 
-  setEnabled(enabled: boolean) {
+  setEnabled(enabled: boolean): void {
     this.enabled = enabled;
     if (enabled) this.unlock();
     this.updateMaster();
   }
 
-  setHidden(hidden: boolean) {
+  setHidden(hidden: boolean): void {
     this.hidden = hidden;
     if (!hidden) this.unlock();
     this.updateMaster();
   }
 
-  updateMaster() {
+  updateMaster(): void {
     if (!this.master || !this.context) return;
     const audible = this.enabled && !this.hidden;
     this.master.gain.setTargetAtTime(audible ? 0.43 : 0, this.context.currentTime, 0.02);
     if (!audible) this.stopRolling();
   }
 
-  update(moving: ReadonlySet<string> | null, speed: number) {
+  update(moving: ReadonlySet<string> | null, speed: number): void {
     const context = this.context;
     if (!context) return;
     const active = this.enabled && !this.hidden && moving?.size ? moving : null;
@@ -185,11 +194,11 @@ export class TrainSound {
     this.speed = speed;
   }
 
-  stopRolling() {
+  stopRolling(): void {
     this.update(null, this.speed);
   }
 
-  call(type: CallType) {
+  call(type: CallType): void {
     if (!this.enabled || this.hidden) return;
     this.unlock();
     const { context, master } = this;

@@ -18,7 +18,20 @@ export class WorkerError extends Error {
   }
 }
 
-export function connectWorker(port: WorkerPort, onEvent: (event: WorkerEvent) => void) {
+/** The page's handle on the worker. */
+export interface WorkerClient {
+  readonly send: (message: ToWorker, transfer?: Transferable[]) => void;
+  /** Sends a request to the worker and resolves with its reply, or rejects if it failed. */
+  readonly request: <T extends RequestType>(
+    type: T,
+    message: Requests[T]["message"],
+  ) => Promise<Requests[T]["reply"]>;
+}
+
+export function connectWorker(
+  port: WorkerPort,
+  onEvent: (event: WorkerEvent) => void,
+): WorkerClient {
   const pending = new Map<
     number,
     { resolve: (value: never) => void; reject: (error: Error) => void }

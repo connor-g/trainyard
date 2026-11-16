@@ -78,7 +78,7 @@ const STEPS: Point[] = [
 export const OPPOSITE: readonly Port[] = [2, 3, 0, 1];
 const QUARTER_TURN = Math.PI / 2;
 
-export const indexAt = (x: number, y: number, cols: number) => y * cols + x;
+export const indexAt = (x: number, y: number, cols: number): number => y * cols + x;
 export const cellAt = (index: number, cols: number): Point => [
   index % cols,
   Math.floor(index / cols),
@@ -94,11 +94,11 @@ export function trackPaths(tile: Orientation, all = false): Port[][] {
   return selected.map((path) => path.map((port) => (port === -1 ? -1 : (port + tile.turn) % 4)));
 }
 
-export function hasPort(tile: Orientation | null | undefined, port: Port) {
+export function hasPort(tile: Orientation | null | undefined, port: Port): boolean {
   return Boolean(tile && trackPaths(tile, true).some((route) => route.includes(port)));
 }
 
-export function neighbor({ cols, rows }: Board, index: number, port: Port) {
+export function neighbor({ cols, rows }: Board, index: number, port: Port): number {
   if (port === -1) return -1;
   const [x, y] = cellAt(index, cols);
   const [dx, dy] = STEPS[port];
@@ -107,7 +107,7 @@ export function neighbor({ cols, rows }: Board, index: number, port: Port) {
   return nx < 0 || ny < 0 || nx >= cols || ny >= rows ? -1 : indexAt(nx, ny, cols);
 }
 
-export function switchBranch(board: Board, index: number, tile: Tile) {
+export function switchBranch(board: Board, index: number, tile: Tile): boolean {
   const [[, main], [, branch]] = trackPaths(tile, true);
   const mainConnected = hasPort(board.grid[neighbor(board, index, main)], OPPOSITE[main]);
   const branchConnected = hasPort(board.grid[neighbor(board, index, branch)], OPPOSITE[branch]);
@@ -170,12 +170,12 @@ export function position(path: Segment, distance: number, cols: number): Positio
 }
 
 /** Identifies a route across a square, so segments compare by value rather than identity. */
-export function pathKey(path: SegmentRef) {
+export function pathKey(path: SegmentRef): string {
   return path.index + ":" + path.from + ":" + path.to;
 }
 
 /** The routes on a tile nearest a point within its square, preferred route first. */
-export function routesAt(tile: Tile, x: number, y: number) {
+export function routesAt(tile: Tile, x: number, y: number): Port[][] {
   const routes = trackPaths(tile, true);
   if (isSwitch(tile) && tile.branch) routes.reverse();
   if (tile.type !== "cross") return routes;
@@ -184,7 +184,7 @@ export function routesAt(tile: Tile, x: number, y: number) {
 }
 
 /** Whether `from`→`to` (in either direction) is a route on the tile at `index`. */
-export function isRoute(board: Board, { index, from, to }: SegmentRef) {
+export function isRoute(board: Board, { index, from, to }: SegmentRef): boolean {
   if (!Number.isInteger(index) || index < 0 || index >= board.cols * board.rows) return false;
   const tile = board.grid[index];
   return Boolean(
@@ -195,7 +195,7 @@ export function isRoute(board: Board, { index, from, to }: SegmentRef) {
 }
 
 /** Whether `next` continues from `path`: it is on the square beyond `path.to` and enters from the opposite side. */
-export function leadsInto(board: Board, path: SegmentRef, next: SegmentRef) {
+export function leadsInto(board: Board, path: SegmentRef, next: SegmentRef): boolean {
   return (
     path.to !== -1 &&
     next.index === neighbor(board, path.index, path.to) &&
@@ -227,7 +227,7 @@ export function structureJoins(board: Board | undefined, x: number, y: number, t
 }
 
 /** Whether the board point (in squares) is hidden under a tunnel roof. */
-export function underTunnelRoof(board: Board, x: number, y: number) {
+export function underTunnelRoof(board: Board, x: number, y: number): boolean {
   const col = Math.floor(x);
   const row = Math.floor(y);
   if (col < 0 || col >= board.cols || row < 0 || row >= board.rows) return false;
