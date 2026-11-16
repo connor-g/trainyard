@@ -1,7 +1,7 @@
 /** Stores blobs in an S3-compatible bucket (AWS S3, Cloudflare R2, MinIO, ...) with signed requests. */
 import { AwsClient } from "aws4fetch";
 import { BlobExistsError, BlobNotFoundError, assertKey } from "./blob-storage.ts";
-import type { BlobInfo, BlobStorage, ListOptions } from "./blob-storage.ts";
+import type { BlobInfo, BlobStorage } from "./blob-storage.ts";
 
 export interface S3StorageOptions {
   /**
@@ -85,13 +85,13 @@ export function createS3Storage(options: S3StorageOptions): BlobStorage {
     });
 
   return {
-    async list({ prefix = "" }: ListOptions = {}) {
+    async list() {
       const results: BlobInfo[] = [];
       let token: string | undefined;
       do {
         const url = new URL(`${base}/`);
         url.searchParams.set("list-type", "2");
-        url.searchParams.set("prefix", keyPrefix + prefix);
+        url.searchParams.set("prefix", keyPrefix);
         if (token) url.searchParams.set("continuation-token", token);
         const response = await client.fetch(url);
         if (!response.ok) throw new S3StorageError("list", response);

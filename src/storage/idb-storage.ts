@@ -2,7 +2,7 @@
 import { openDB } from "idb";
 import type { DBSchema, IDBPDatabase } from "idb";
 import { BlobExistsError, BlobNotFoundError, assertKey } from "./blob-storage.ts";
-import type { BlobInfo, BlobStorage, ListOptions } from "./blob-storage.ts";
+import type { BlobInfo, BlobStorage } from "./blob-storage.ts";
 
 interface StoredBlob extends BlobInfo {
   readonly data: Blob;
@@ -28,9 +28,6 @@ const record = (key: string, data: Blob): StoredBlob => ({
   data,
 });
 
-/** Every key that starts with `prefix`; keys are compared by UTF-16 code unit. */
-const prefixRange = (prefix: string) => IDBKeyRange.bound(prefix, `${prefix}￿`, false, false);
-
 export function createIdbStorage({
   databaseName = "trainyard-blobs",
 }: IdbStorageOptions = {}): BlobStorage & {
@@ -46,9 +43,8 @@ export function createIdbStorage({
     }));
 
   return {
-    async list({ prefix }: ListOptions = {}) {
-      const range = prefix ? prefixRange(prefix) : undefined;
-      const records = await (await open()).getAll(STORE, range);
+    async list() {
+      const records = await (await open()).getAll(STORE);
       return records.map(toInfo);
     },
 

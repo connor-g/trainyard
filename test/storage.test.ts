@@ -129,7 +129,7 @@ function contract(
       await storage.delete("a");
     });
 
-    test("lists blobs in key order, optionally by prefix", async () => {
+    test("lists blobs in key order", async () => {
       for (const key of ["yards/b", "sounds/horn", "yards/a & c", "yards/c"]) {
         await storage.create(key, text(key));
       }
@@ -142,8 +142,6 @@ function contract(
       ]);
       expect(all[0].size).toBe("sounds/horn".length);
       expect(all[0].lastModified).toBeGreaterThan(0);
-      const yards = await storage.list({ prefix: "yards/" });
-      expect(yards.map((info) => info.key)).toEqual(["yards/a & c", "yards/b", "yards/c"]);
     });
 
     test("rejects an empty key", async () => {

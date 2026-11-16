@@ -8,14 +8,9 @@ export interface BlobInfo {
   readonly lastModified: number;
 }
 
-export interface ListOptions {
-  /** Only list keys that start with this. */
-  readonly prefix?: string;
-}
-
 export interface BlobStorage {
   /** Lists the stored blobs in key order. */
-  list(options?: ListOptions): Promise<BlobInfo[]>;
+  list(): Promise<BlobInfo[]>;
 
   /** Stores a new blob. Rejects with `BlobExistsError` if the key is taken. */
   create(key: string, data: Blob): Promise<void>;
