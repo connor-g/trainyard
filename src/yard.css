@@ -167,12 +167,21 @@
     /* Touch targets: above the HIG 44pt minimum */
     --tap: var(--size-12);
 
-    /* Radii. Inner radius = outer radius - padding, so nested corners stay concentric. */
-    --radius-small: var(--space-1); /* 4px */
-    --radius-control: var(--space-2); /* 8px */
-    --radius-card: var(--space-2); /* 8px */
-    --radius-group: var(--space-3); /* 12px */
-    --radius-panel: var(--space-4); /* 16px */
+    /*
+     * Radii nest concentrically: an inner shape's radius is its container's radius minus the
+     * container's border and padding. Each level is derived from the one inside it with calc(),
+     * so the rule holds by construction. Containers use the matching padding token and a
+     * hairline border.
+     */
+    --inset-padding: var(--space-1); /* between a card and the shape inside it */
+    --panel-padding: var(--space-2); /* between a panel and the cards inside it */
+    --radius-inset: var(--space-1); /* 4px: shapes inside a card */
+    --radius-card: calc(
+      var(--radius-inset) + var(--inset-padding) + var(--hairline)
+    ); /* 9px: cards */
+    --radius-panel: calc(
+      var(--radius-card) + var(--panel-padding) + var(--hairline)
+    ); /* 18px: panels */
 
     /* Lines. Hairlines stay a true 1px at any root font size. */
     --hairline: 1px;
@@ -402,7 +411,7 @@
   }
 
   .workbench {
-    padding: var(--space-3);
+    padding: var(--panel-padding);
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
@@ -413,17 +422,11 @@
       gap: var(--space-2);
     }
 
-    @media (width <= 560px) and (orientation: portrait) {
-      padding: var(--space-2);
-    }
-
     @media (height <= 770px) and (orientation: landscape) {
       gap: var(--space-2);
-      padding: var(--space-2);
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      padding: var(--space-2);
       gap: var(--space-2);
     }
   }
@@ -431,26 +434,16 @@
   .yard {
     display: flex;
     flex-direction: column;
-    padding: var(--space-4);
+    padding: var(--panel-padding);
     gap: var(--space-4);
-
-    @media (width <= 1100px) {
-      padding: var(--space-3);
-    }
 
     @media (width <= 1100px) and (orientation: portrait) {
       flex: 1;
       min-block-size: 0;
-      padding: var(--space-3);
       gap: var(--space-2);
     }
 
-    @media (width <= 560px) and (orientation: portrait) {
-      padding: var(--space-2);
-    }
-
     @media (height <= 540px) and (orientation: landscape) {
-      padding: var(--space-2);
       gap: var(--space-2);
     }
   }
@@ -541,7 +534,7 @@
     min-block-size: var(--tap);
     padding: 0 var(--space-4);
     border: var(--hairline) solid var(--line);
-    border-radius: var(--radius-control);
+    border-radius: var(--radius-card);
     background: var(--panel);
     font-size: var(--text-subhead);
     font-weight: var(--semibold);
@@ -583,9 +576,9 @@
     grid-auto-columns: 1fr;
     gap: 0;
     flex: none;
-    padding: var(--space-1);
+    padding: var(--inset-padding);
     border: var(--hairline) solid var(--line);
-    border-radius: var(--radius-group); /* tab radius + padding, so the corners nest */
+    border-radius: var(--radius-card);
     background: var(--surface-sunken);
   }
 
@@ -597,7 +590,7 @@
     min-block-size: var(--size-14);
     padding: 0 var(--space-1);
     border: var(--hairline) solid transparent;
-    border-radius: var(--radius-control);
+    border-radius: var(--radius-inset);
     background: transparent;
     font-size: var(--text-headline);
     font-weight: var(--semibold);
@@ -773,7 +766,7 @@
     block-size: var(--size-12);
     padding: var(--space-1);
     border: var(--hairline) solid transparent;
-    border-radius: var(--radius-control);
+    border-radius: var(--radius-card);
     background: none;
 
     & span {
@@ -818,7 +811,7 @@
     gap: var(--space-2);
     min-block-size: var(--size-14);
     padding: var(--space-1) var(--space-3);
-    border-radius: var(--radius-group);
+    border-radius: var(--radius-card);
     font-size: var(--text-subhead);
     font-weight: var(--semibold);
   }
@@ -873,18 +866,10 @@
     display: grid;
     place-items: center;
     overflow: hidden;
-    padding: var(--space-3) var(--space-3) var(--space-3) var(--space-2);
+    padding: var(--inset-padding);
     border: var(--hairline) solid var(--frame-border);
     border-radius: var(--radius-card);
     background: var(--frame);
-
-    @media (width <= 1100px) and (orientation: portrait) {
-      padding: var(--space-2);
-    }
-
-    @media (height <= 540px) and (orientation: landscape) {
-      padding: var(--space-1);
-    }
   }
 
   /* `resize()` in yard.ts reads the first grid track sizes as the coordinate gutters. */
@@ -939,7 +924,7 @@
     grid-area: 2 / 2;
     position: relative;
     overflow: hidden;
-    border-radius: var(--radius-control);
+    border-radius: var(--radius-inset);
     background: var(--board);
     box-shadow: 0 0 0 var(--hairline) var(--board-edge);
 
@@ -1033,7 +1018,7 @@
       min-inline-size: var(--tap);
       block-size: var(--tap);
       border: var(--hairline) solid var(--speed-border);
-      border-radius: var(--radius-small);
+      border-radius: var(--radius-card);
       background: var(--speed-fill);
       color: var(--speed-ink);
       font-weight: var(--semibold);
@@ -1077,7 +1062,7 @@
     inline-size: max-content;
     max-inline-size: calc(100% - var(--space-6));
     padding: var(--space-2) var(--space-3);
-    border-radius: var(--radius-control);
+    border-radius: var(--radius-card);
     /* A translucent material, as HIG uses for transient overlays. */
     background: color-mix(in srgb, var(--toast) var(--mix-material), transparent);
     -webkit-backdrop-filter: var(--material-filter);
@@ -1111,10 +1096,12 @@
 
   /* Dialogs ------------------------------------------------------------------------------- */
   dialog {
+    --dialog-padding: var(--space-6);
+
     inline-size: min(var(--size-dialog), calc(100% - var(--space-6)));
-    padding: var(--space-6);
+    padding: var(--dialog-padding);
     border: var(--hairline) solid var(--line);
-    border-radius: var(--radius-panel);
+    border-radius: calc(var(--radius-card) + var(--dialog-padding) + var(--hairline));
     background: var(--panel);
     color: var(--ink);
     box-shadow: var(--shadow-modal);
@@ -1144,7 +1131,7 @@
     inline-size: var(--tap);
     block-size: var(--tap);
     border: 0;
-    border-radius: var(--radius-control);
+    border-radius: var(--radius-card);
     background: var(--surface-sunken);
   }
 
@@ -1162,10 +1149,10 @@
     display: grid;
     justify-items: center;
     gap: var(--space-2);
-    padding: var(--space-1);
+    padding: var(--inset-padding);
     min-inline-size: 0;
     border: var(--hairline) solid var(--line);
-    border-radius: var(--radius-control);
+    border-radius: var(--radius-card);
     background: var(--surface);
     font-size: var(--text-caption);
     font-weight: var(--semibold);
@@ -1174,7 +1161,7 @@
       inline-size: 100%;
       block-size: auto;
       aspect-ratio: var(--ratio-yard-thumbnail);
-      border-radius: var(--radius-small);
+      border-radius: var(--radius-inset);
       pointer-events: none;
     }
 
@@ -1194,7 +1181,7 @@
     min-block-size: var(--size-14);
     padding: var(--space-1);
     border: var(--hairline) solid var(--line);
-    border-radius: var(--radius-control);
+    border-radius: var(--radius-card);
     background: var(--surface);
     font-size: var(--text-footnote);
     font-weight: var(--semibold);
@@ -1251,7 +1238,7 @@
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      padding: var(--space-3);
+      --dialog-padding: var(--space-3);
 
       & .layout-heading {
         margin: var(--space-2) 0 var(--space-2);
@@ -1282,7 +1269,7 @@
 
   #layout-library {
     @media (height <= 540px) and (orientation: landscape) {
-      padding: var(--space-3);
+      --dialog-padding: var(--space-3);
 
       & .library-section {
         margin-block-start: var(--space-2);
@@ -1301,7 +1288,7 @@
       min-block-size: var(--size-12);
       padding: 0 var(--space-2);
       border: var(--hairline) solid var(--line-strong);
-      border-radius: var(--radius-control);
+      border-radius: var(--radius-card);
       background: var(--panel);
       color: var(--ink);
       caret-color: var(--focus);
@@ -1352,9 +1339,9 @@
     align-content: start;
     gap: var(--space-2);
     min-inline-size: 0;
-    padding: var(--space-1);
+    padding: var(--inset-padding);
     border: var(--hairline) solid var(--line);
-    border-radius: var(--radius-control);
+    border-radius: var(--radius-card);
     background: var(--surface);
     text-align: start;
     font-size: var(--text-footnote);
@@ -1365,7 +1352,7 @@
       inline-size: 100%;
       aspect-ratio: var(--ratio-yard-thumbnail);
       object-fit: contain;
-      border-radius: var(--radius-control);
+      border-radius: var(--radius-inset);
       background: var(--frame);
 
       @media (height <= 540px) and (orientation: landscape) {
