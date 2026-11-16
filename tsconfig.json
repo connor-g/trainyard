@@ -11,7 +11,7 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
 
-    // Type-check only; Vite+ bundles the app and Node runs .ts directly by stripping types.
+    // Type-check only; Vite+ bundles the app.
     "noEmit": true,
     "allowImportingTsExtensions": true
   },

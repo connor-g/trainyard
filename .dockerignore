@@ -1,8 +1,0 @@
-*
-!Dockerfile
-!nginx.conf
-!layouts.ts
-!presets.ts
-!src/railway.ts
-!public/
-!public/**
