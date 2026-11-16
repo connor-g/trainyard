@@ -3,15 +3,16 @@
  * its start. Saved yards can come from another device through a shared library, so `parseSaved`
  * checks everything the game relies on before a yard reaches the model or the renderer.
  */
-import { GRID_SIZES } from "./railway.ts";
+
 import { COLORS, STOCK, TRACK, isBackground, isEngine } from "./catalog.ts";
-import type { GridSize, SegmentRef, Tile } from "./railway.ts";
 import type { Background, Car } from "./catalog.ts";
 import { isRecord } from "./guards.ts";
 import { isValidStart } from "./model/queries.ts";
 import { MAX_CARS } from "./model/train.ts";
 import { nextTrainId } from "./model/types.ts";
 import type { Yard } from "./model/types.ts";
+import { GRID_SIZES } from "./railway.ts";
+import type { GridSize, SegmentRef, Tile } from "./railway.ts";
 
 /** The saved shape: a yard without train ids, which are assigned on load. */
 export interface SavedYard {

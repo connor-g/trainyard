@@ -1,9 +1,9 @@
-import { blankBoard, indexAt, trackPaths } from "./railway.ts";
-import type { Board, Point, Tile } from "./railway.ts";
 import type { Background, ColorName, StockType, TrackType } from "./catalog.ts";
 import { MAX_CARS, extendTail, isValidPath, placeCar, toRefs } from "./model/train.ts";
 import { nextTrainId } from "./model/types.ts";
 import type { TrainSpec, Yard } from "./model/types.ts";
+import { blankBoard, indexAt, trackPaths } from "./railway.ts";
+import type { Board, Point, Tile } from "./railway.ts";
 
 type Feature = [x: number, y: number, type: TrackType];
 type CarSpec = [type: StockType, color: ColorName];

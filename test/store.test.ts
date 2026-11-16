@@ -1,11 +1,12 @@
 import { describe, expect, test } from "vite-plus/test";
-import { COLS } from "../src/railway.ts";
+
 import type { Car } from "../src/catalog.ts";
 import { initialMotion, motionEquals } from "../src/model/motion.ts";
-import { COLLISION } from "../src/model/train.ts";
 import { carPositions } from "../src/model/queries.ts";
+import { COLLISION } from "../src/model/train.ts";
 import type { TrainId, Yard } from "../src/model/types.ts";
 import { sampleLayout, scenicPresets } from "../src/presets.ts";
+import { COLS } from "../src/railway.ts";
 import { createStore } from "../src/store.ts";
 import type { Store } from "../src/store.ts";
 import { at, centre, straightRow, yardWith } from "./helpers.ts";

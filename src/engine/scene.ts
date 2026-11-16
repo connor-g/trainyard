@@ -1,6 +1,7 @@
 /** What the engine hands its renderer, and the renderer it draws through. */
-import type { Board, CarPosition } from "../railway.ts";
+
 import type { CarRef, Motion, TrainId, Yard } from "../model/types.ts";
+import type { Board, CarPosition } from "../railway.ts";
 import type { PictureSpec } from "./protocol.ts";
 
 /** The board as the scene layer shows it: a drag previews its edit, and the square under it is marked. */

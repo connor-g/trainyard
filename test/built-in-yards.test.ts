@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vite-plus/test";
+
 import { initialMotion } from "../src/model/motion.ts";
 import { carPositions } from "../src/model/queries.ts";
 import { SPEED, initialSimState, step } from "../src/model/simulation.ts";

@@ -1,5 +1,6 @@
 import "fake-indexeddb/auto";
 import { describe, expect, test } from "vite-plus/test";
+
 import {
   DEFAULT_LIBRARY,
   YardLibrary,
@@ -12,10 +13,10 @@ import {
   yardBlobKey,
 } from "../src/libraries.ts";
 import type { SettingsStore } from "../src/libraries.ts";
+import { sampleLayout } from "../src/presets.ts";
 import { toSaved } from "../src/saves.ts";
 import { IdbStorage } from "../src/storage/idb-storage.ts";
 import { S3Storage } from "../src/storage/s3-storage.ts";
-import { sampleLayout } from "../src/presets.ts";
 
 function memorySettings(initial: Record<string, string> = {}): SettingsStore & {
   values: Map<string, string>;

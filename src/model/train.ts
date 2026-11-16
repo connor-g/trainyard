@@ -1,7 +1,8 @@
 /** Geometry shared by the model: where cars sit along a path, and whether a path is valid. */
+
+import type { Car } from "../catalog.ts";
 import { isRoute, leadsInto, onward, pathKey, position, routesAt, segment } from "../railway.ts";
 import type { Board, CarPosition, Segment, SegmentRef } from "../railway.ts";
-import type { Car } from "../catalog.ts";
 
 /** Distance between the centres of neighbouring cars. */
 export const CAR_GAP = 0.7;

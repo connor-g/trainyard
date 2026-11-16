@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vite-plus/test";
+
 import { STOCK, TRACK } from "../src/catalog.ts";
 import type { Car, StockType, TrackType } from "../src/catalog.ts";
 import { applyEdit } from "../src/model/edits.ts";

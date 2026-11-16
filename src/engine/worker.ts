@@ -1,8 +1,8 @@
 /** The yard worker: runs the engine and draws on the board canvas the page hands over. */
 import { createEngine } from "./engine.ts";
 import type { Engine } from "./engine.ts";
-import { createRenderer } from "./renderer.ts";
 import type { FromWorker, ToWorker } from "./protocol.ts";
+import { createRenderer } from "./renderer.ts";
 
 // The project compiles against the DOM library, so describe the worker scope it uses here.
 interface WorkerScope {

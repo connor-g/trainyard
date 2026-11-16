@@ -2,9 +2,10 @@
  * Messages between the page and the yard worker. The worker owns the yard, the trains, undo and
  * all drawing; the page owns the DOM, pointer input, sound and the yard libraries.
  */
-import type { Tile } from "../railway.ts";
+
 import type { Background, ColorName, StockType, TrackType } from "../catalog.ts";
 import type { Edit, Refusal } from "../model/edits.ts";
+import type { Tile } from "../railway.ts";
 import type { SavedYard } from "../saves.ts";
 import type { CallType } from "../sound.ts";
 

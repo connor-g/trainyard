@@ -1,10 +1,10 @@
-import { COLS, blankBoard, indexAt } from "../src/railway.ts";
-import type { Tile } from "../src/railway.ts";
 import type { Car, TrackType } from "../src/catalog.ts";
 import { applyEdit } from "../src/model/edits.ts";
 import type { Edit, EditResult } from "../src/model/edits.ts";
 import { initialMotion } from "../src/model/motion.ts";
 import type { Motion, Yard } from "../src/model/types.ts";
+import { COLS, blankBoard, indexAt } from "../src/railway.ts";
+import type { Tile } from "../src/railway.ts";
 
 export const at = (x: number, y: number) => indexAt(x, y, COLS);
 

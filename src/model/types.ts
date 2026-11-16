@@ -1,5 +1,5 @@
-import type { Board, Segment, SegmentRef } from "../railway.ts";
 import type { Background, Car } from "../catalog.ts";
+import type { Board, Segment, SegmentRef } from "../railway.ts";
 
 export type { Board, SegmentRef } from "../railway.ts";
 
