@@ -108,7 +108,7 @@
     --toast: light-dark(#1c1c1e, #f2f2f7);
     --toast-ink: light-dark(#fff, #000);
 
-    /* Type: New York (Apple's system serif) via `ui-serif`, on the HIG text-style scale. */
+    /* Type: San Francisco via `system-ui` and New York via `ui-serif`, on the HIG scale. */
     --sans:
       system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
       sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
@@ -255,7 +255,7 @@
 /* ------------------------------------------------------------------------------------------ */
 @layer base {
   :root {
-    font-family: var(--serif);
+    font-family: var(--sans);
     font-weight: var(--regular);
     color: var(--ink);
     background: var(--paper);
