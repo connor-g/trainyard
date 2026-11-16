@@ -28,63 +28,66 @@ const record = (key: string, data: Blob): StoredBlob => ({
   data,
 });
 
-export function createIdbStorage({
-  databaseName = "trainyard-blobs",
-}: IdbStorageOptions = {}): BlobStorage & {
-  /** Closes the database connection. The storage can't be used afterwards. */
-  close(): Promise<void>;
-} {
-  let db: Promise<IDBPDatabase<BlobSchema>> | undefined;
-  const open = () =>
-    (db ??= openDB<BlobSchema>(databaseName, 1, {
+export class IdbStorage implements BlobStorage {
+  readonly #databaseName: string;
+  #db: Promise<IDBPDatabase<BlobSchema>> | undefined;
+
+  constructor({ databaseName = "trainyard-blobs" }: IdbStorageOptions = {}) {
+    this.#databaseName = databaseName;
+  }
+
+  /** Opens the database on first use and reuses the connection after that. */
+  #open(): Promise<IDBPDatabase<BlobSchema>> {
+    return (this.#db ??= openDB<BlobSchema>(this.#databaseName, 1, {
       upgrade(database) {
         database.createObjectStore(STORE, { keyPath: "key" });
       },
     }));
+  }
 
-  return {
-    async list() {
-      const records = await (await open()).getAll(STORE);
-      return records.map(toInfo);
-    },
+  async list(): Promise<BlobInfo[]> {
+    const records = await (await this.#open()).getAll(STORE);
+    return records.map(toInfo);
+  }
 
-    async create(key, data) {
-      assertKey(key);
-      try {
-        await (await open()).add(STORE, record(key, data));
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "ConstraintError") {
-          throw new BlobExistsError(key);
-        }
-        throw error;
+  async create(key: string, data: Blob): Promise<void> {
+    assertKey(key);
+    try {
+      await (await this.#open()).add(STORE, record(key, data));
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "ConstraintError") {
+        throw new BlobExistsError(key);
       }
-    },
+      throw error;
+    }
+  }
 
-    async read(key) {
-      assertKey(key);
-      return (await (await open()).get(STORE, key))?.data ?? null;
-    },
+  async read(key: string): Promise<Blob | null> {
+    assertKey(key);
+    return (await (await this.#open()).get(STORE, key))?.data ?? null;
+  }
 
-    async update(key, data) {
-      assertKey(key);
-      const tx = (await open()).transaction(STORE, "readwrite");
-      // Check and write in one transaction so a concurrent delete can't slip between them.
-      if ((await tx.store.getKey(key)) === undefined) {
-        tx.abort();
-        await tx.done.catch(() => {});
-        throw new BlobNotFoundError(key);
-      }
-      await Promise.all([tx.store.put(record(key, data)), tx.done]);
-    },
+  async update(key: string, data: Blob): Promise<void> {
+    assertKey(key);
+    const tx = (await this.#open()).transaction(STORE, "readwrite");
+    // Check and write in one transaction so a concurrent delete can't slip between them.
+    if ((await tx.store.getKey(key)) === undefined) {
+      tx.abort();
+      await tx.done.catch(() => {});
+      throw new BlobNotFoundError(key);
+    }
+    await Promise.all([tx.store.put(record(key, data)), tx.done]);
+  }
 
-    async delete(key) {
-      assertKey(key);
-      await (await open()).delete(STORE, key);
-    },
+  async delete(key: string): Promise<void> {
+    assertKey(key);
+    await (await this.#open()).delete(STORE, key);
+  }
 
-    async close() {
-      if (db) (await db).close();
-      db = undefined;
-    },
-  };
+  /** Closes the database connection. Using the storage again reopens it. */
+  async close(): Promise<void> {
+    const db = this.#db;
+    this.#db = undefined;
+    if (db) (await db).close();
+  }
 }

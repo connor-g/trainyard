@@ -62,85 +62,92 @@ export function parseListPage(xml: string): {
   return nextToken ? { objects, nextToken } : { objects };
 }
 
-export function createS3Storage(options: S3StorageOptions): BlobStorage {
-  const { bucketUrl, keyPrefix = "" } = options;
-  const base = bucketUrl.replace(/\/+$/, "");
-  const client = new AwsClient({
-    accessKeyId: options.accessKeyId,
-    secretAccessKey: options.secretAccessKey,
-    service: "s3",
-    ...(options.sessionToken && { sessionToken: options.sessionToken }),
-    ...(options.region && { region: options.region }),
-  });
+export class S3Storage implements BlobStorage {
+  readonly #base: string;
+  readonly #keyPrefix: string;
+  readonly #client: AwsClient;
 
-  const objectUrl = (key: string) =>
-    `${base}/${(keyPrefix + key).split("/").map(encodeURIComponent).join("/")}`;
+  constructor(options: S3StorageOptions) {
+    this.#base = options.bucketUrl.replace(/\/+$/, "");
+    this.#keyPrefix = options.keyPrefix ?? "";
+    this.#client = new AwsClient({
+      accessKeyId: options.accessKeyId,
+      secretAccessKey: options.secretAccessKey,
+      service: "s3",
+      ...(options.sessionToken && { sessionToken: options.sessionToken }),
+      ...(options.region && { region: options.region }),
+    });
+  }
 
-  const put = async (key: string, data: Blob, condition: Record<string, string>) =>
-    client.fetch(objectUrl(key), {
+  async list(): Promise<BlobInfo[]> {
+    const results: BlobInfo[] = [];
+    let token: string | undefined;
+    do {
+      const url = new URL(`${this.#base}/`);
+      url.searchParams.set("list-type", "2");
+      url.searchParams.set("prefix", this.#keyPrefix);
+      if (token) url.searchParams.set("continuation-token", token);
+      const response = await this.#client.fetch(url);
+      if (!response.ok) throw new S3StorageError("list", response);
+      const page = parseListPage(await response.text());
+      for (const object of page.objects) {
+        results.push({ ...object, key: object.key.slice(this.#keyPrefix.length) });
+      }
+      token = page.nextToken;
+    } while (token);
+    return results;
+  }
+
+  async create(key: string, data: Blob): Promise<void> {
+    assertKey(key);
+    // A conditional write, so two creates of the same key can't both succeed.
+    const response = await this.#put(key, data, { "If-None-Match": "*" });
+    if (response.status === 412) throw new BlobExistsError(key);
+    if (!response.ok) throw new S3StorageError("create", response);
+  }
+
+  async read(key: string): Promise<Blob | null> {
+    assertKey(key);
+    const response = await this.#client.fetch(this.#objectUrl(key));
+    if (response.status === 404) return null;
+    if (!response.ok) throw new S3StorageError("read", response);
+    return response.blob();
+  }
+
+  async update(key: string, data: Blob): Promise<void> {
+    assertKey(key);
+    for (let attempt = 0; attempt < UPDATE_ATTEMPTS; attempt += 1) {
+      const head = await this.#client.fetch(this.#objectUrl(key), { method: "HEAD" });
+      if (head.status === 404) throw new BlobNotFoundError(key);
+      if (!head.ok) throw new S3StorageError("update", head);
+      const etag = head.headers.get("ETag");
+      // Write only over the version just seen, so a concurrent delete isn't silently undone.
+      const response = await this.#put(key, data, etag ? { "If-Match": etag } : {});
+      if (response.status === 404) throw new BlobNotFoundError(key);
+      if (response.status === 412) continue;
+      if (!response.ok) throw new S3StorageError("update", response);
+      return;
+    }
+    throw new Error(`Gave up updating "${key}" after it kept changing`);
+  }
+
+  async delete(key: string): Promise<void> {
+    assertKey(key);
+    const response = await this.#client.fetch(this.#objectUrl(key), { method: "DELETE" });
+    if (!response.ok && response.status !== 404) throw new S3StorageError("delete", response);
+  }
+
+  #objectUrl(key: string): string {
+    const path = (this.#keyPrefix + key).split("/").map(encodeURIComponent).join("/");
+    return `${this.#base}/${path}`;
+  }
+
+  async #put(key: string, data: Blob, condition: Record<string, string>): Promise<Response> {
+    return this.#client.fetch(this.#objectUrl(key), {
       method: "PUT",
       // aws4fetch signs the payload hash, which needs the bytes up front.
       body: await data.arrayBuffer(),
       headers: { "Content-Type": data.type || "application/octet-stream", ...condition },
     });
-
-  return {
-    async list() {
-      const results: BlobInfo[] = [];
-      let token: string | undefined;
-      do {
-        const url = new URL(`${base}/`);
-        url.searchParams.set("list-type", "2");
-        url.searchParams.set("prefix", keyPrefix);
-        if (token) url.searchParams.set("continuation-token", token);
-        const response = await client.fetch(url);
-        if (!response.ok) throw new S3StorageError("list", response);
-        const page = parseListPage(await response.text());
-        for (const object of page.objects) {
-          results.push({ ...object, key: object.key.slice(keyPrefix.length) });
-        }
-        token = page.nextToken;
-      } while (token);
-      return results;
-    },
-
-    async create(key, data) {
-      assertKey(key);
-      // A conditional write, so two creates of the same key can't both succeed.
-      const response = await put(key, data, { "If-None-Match": "*" });
-      if (response.status === 412) throw new BlobExistsError(key);
-      if (!response.ok) throw new S3StorageError("create", response);
-    },
-
-    async read(key) {
-      assertKey(key);
-      const response = await client.fetch(objectUrl(key));
-      if (response.status === 404) return null;
-      if (!response.ok) throw new S3StorageError("read", response);
-      return response.blob();
-    },
-
-    async update(key, data) {
-      assertKey(key);
-      for (let attempt = 0; attempt < UPDATE_ATTEMPTS; attempt += 1) {
-        const head = await client.fetch(objectUrl(key), { method: "HEAD" });
-        if (head.status === 404) throw new BlobNotFoundError(key);
-        if (!head.ok) throw new S3StorageError("update", head);
-        const etag = head.headers.get("ETag");
-        // Write only over the version just seen, so a concurrent delete isn't silently undone.
-        const response = await put(key, data, etag ? { "If-Match": etag } : {});
-        if (response.status === 404) throw new BlobNotFoundError(key);
-        if (response.status === 412) continue;
-        if (!response.ok) throw new S3StorageError("update", response);
-        return;
-      }
-      throw new Error(`Gave up updating "${key}" after it kept changing`);
-    },
-
-    async delete(key) {
-      assertKey(key);
-      const response = await client.fetch(objectUrl(key), { method: "DELETE" });
-      if (!response.ok && response.status !== 404) throw new S3StorageError("delete", response);
-    },
-  };
+  }
 }

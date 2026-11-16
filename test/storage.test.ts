@@ -4,8 +4,8 @@ import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "vite-plus/test";
 import { BlobExistsError, BlobNotFoundError } from "../src/storage/blob-storage.ts";
 import type { BlobStorage } from "../src/storage/blob-storage.ts";
-import { createIdbStorage } from "../src/storage/idb-storage.ts";
-import { createS3Storage, parseListPage } from "../src/storage/s3-storage.ts";
+import { IdbStorage } from "../src/storage/idb-storage.ts";
+import { S3Storage, parseListPage } from "../src/storage/s3-storage.ts";
 
 const text = (value: string, type = "text/plain") => new Blob([value], { type });
 
@@ -152,14 +152,14 @@ function contract(
 
 let databases = 0;
 contract("IndexedDB storage", () => {
-  const storage = createIdbStorage({ databaseName: `test-${(databases += 1)}` });
+  const storage = new IdbStorage({ databaseName: `test-${(databases += 1)}` });
   return { storage, teardown: () => storage.close() };
 });
 
 contract("S3 storage", () => {
   const bucketUrl = "https://example-bucket.s3.us-east-1.amazonaws.com";
   fakeBucket(bucketUrl);
-  const storage = createS3Storage({
+  const storage = new S3Storage({
     bucketUrl,
     accessKeyId: "AKIDEXAMPLE",
     secretAccessKey: "secret",
@@ -172,7 +172,7 @@ describe("S3 storage requests", () => {
   test("signs requests and keeps keys under the key prefix", async () => {
     const bucketUrl = "https://account.r2.cloudflarestorage.com/bucket/";
     const bucket = fakeBucket(bucketUrl);
-    const storage = createS3Storage({
+    const storage = new S3Storage({
       bucketUrl,
       accessKeyId: "AKIDEXAMPLE",
       secretAccessKey: "secret",
@@ -198,7 +198,7 @@ describe("S3 storage requests", () => {
         bucket.objects.set("a", { ...object, etag: '"elsewhere"' });
       }
     });
-    const storage = createS3Storage({ bucketUrl, accessKeyId: "id", secretAccessKey: "secret" });
+    const storage = new S3Storage({ bucketUrl, accessKeyId: "id", secretAccessKey: "secret" });
     await storage.create("a", text("one"));
     await storage.update("a", text("two"));
     expect(await (await storage.read("a"))?.text()).toBe("two");
