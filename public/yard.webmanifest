@@ -1,14 +1,20 @@
 {
   "id": "./",
   "name": "Caleb's Train Yard",
-  "short_name": "Caleb's Train Yard",
+  "short_name": "Train Yard",
+  "description": "A model railway for kids: lay tracks, couple cars to an engine, and watch the trains run.",
+  "lang": "en",
+  "dir": "ltr",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f2f2f7",
   "theme_color": "#f2f2f7",
+  "categories": ["games", "kids", "entertainment"],
   "icons": [
-    { "src": "yard.png", "sizes": "180x180", "type": "image/png" },
-    { "src": "yard.svg", "sizes": "any", "type": "image/svg+xml" }
+    { "src": "yard.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "yard-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "yard-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "yard-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
