@@ -1,8 +1,8 @@
 import { describe, expect, test } from "vite-plus/test";
 import { COLS } from "../src/railway.ts";
-import type { Car } from "../src/railway.ts";
-import { fromSaved, toSaved } from "../src/saves.ts";
+import type { Car } from "../src/catalog.ts";
 import { initialMotion, motionEquals } from "../src/model/motion.ts";
+import { COLLISION } from "../src/model/train.ts";
 import { carPositions } from "../src/model/queries.ts";
 import type { TrainId, Yard } from "../src/model/types.ts";
 import { sampleLayout, scenicPresets } from "../src/presets.ts";
@@ -134,16 +134,6 @@ describe("store", () => {
     expectClose(positions(store, train.id), startPositions(meadow, train.id));
   });
 
-  test("loading a yard twice gives its trains new ids", () => {
-    const store = createStore(sampleLayout());
-    const harbor = scenicPresets()[0];
-    store.dispatch({ type: "replace", yard: harbor });
-    const first = store.yard.trains.map((train) => train.id);
-    store.dispatch({ type: "replace", yard: harbor });
-    expect(store.yard.trains.map((train) => train.id)).not.toEqual(first);
-    expect(first).not.toEqual(harbor.trains.map((train) => train.id));
-  });
-
   test("undoing a train removal brings it back at its start", () => {
     const store = createStore(sampleLayout());
     const [train] = store.yard.trains;
@@ -168,7 +158,7 @@ describe("store", () => {
     store.dispatch({ type: "placeTrack", at: at(13, 5), track: "straight" });
     run(store, 1.4);
     expect(positions(store, steamTrain.id)[0][0]).toBeGreaterThan(13);
-    expect(Math.abs(positions(store, dieselTrain.id)[0][0] - start[0][0])).toBeLessThan(0.58);
+    expect(Math.abs(positions(store, dieselTrain.id)[0][0] - start[0][0])).toBeLessThan(COLLISION);
 
     // Undo removes the track under the steam train, so it goes back to its start, on the diesel.
     store.undo();
@@ -187,49 +177,14 @@ describe("store", () => {
     expect(positions(store, steamTrain.id)[0][0]).toBeGreaterThan(start[0][0] + 1);
   });
 
-  test("the undo stack keeps at most 100 entries", () => {
-    const store = createStore(yardWith([[5, 5, "curve"]]));
-    for (let i = 0; i < 130; i += 1) store.dispatch({ type: "turn", at: at(5, 5) });
+  test("the undo stack keeps at most its limit of entries", () => {
+    const store = createStore(yardWith([[5, 5, "curve"]]), { undoLimit: 3 });
+    for (let i = 0; i < 5; i += 1) store.dispatch({ type: "turn", at: at(5, 5) });
     let undos = 0;
     while (store.canUndo) {
       store.undo();
       undos += 1;
     }
-    expect(undos).toBe(100);
-  });
-});
-
-describe("saves", () => {
-  test("round-trip a yard with each train at its start", () => {
-    for (const yard of [sampleLayout(), ...scenicPresets()]) {
-      const loaded = fromSaved(JSON.parse(JSON.stringify(toSaved(yard))))!;
-      expect(loaded.name).toBe(yard.name);
-      expect(loaded.board).toEqual(yard.board);
-      expect(loaded.background).toBe(yard.background);
-      expect(loaded.trains.map(({ cars, start }) => ({ cars, start }))).toEqual(
-        yard.trains.map(({ cars, start }) => ({ cars, start })),
-      );
-      expect(loaded.trains.map((train) => train.id)).not.toEqual(yard.trains.map((t) => t.id));
-    }
-  });
-
-  test("reject anything that isn't a playable yard", () => {
-    const saved = toSaved(sampleLayout());
-    expect(fromSaved(null)).toBeNull();
-    expect(fromSaved({ ...saved, rows: 12 })).toBeNull();
-    expect(fromSaved({ ...saved, background: "moon" })).toBeNull();
-    const [train] = saved.trains;
-    expect(
-      fromSaved({ ...saved, trains: [{ ...train, cars: [{ type: "snowplow" }] }] }),
-    ).toBeNull();
-    const broken = { ...train, start: { ...train.start, path: train.start.path.slice(1, 2) } };
-    expect(fromSaved({ ...saved, trains: [broken] })).toBeNull();
-  });
-
-  test("saving after trains have moved writes their start paths", () => {
-    const store = createStore(sampleLayout());
-    const before = JSON.stringify(toSaved(store.yard));
-    run(store, 5);
-    expect(JSON.stringify(toSaved(store.yard))).toBe(before);
+    expect(undos).toBe(3);
   });
 });

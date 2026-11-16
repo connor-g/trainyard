@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vite-plus/test";
 import { initialMotion } from "../src/model/motion.ts";
 import { carPositions } from "../src/model/queries.ts";
-import { initialSimState, step } from "../src/model/simulation.ts";
+import { SPEED, initialSimState, step } from "../src/model/simulation.ts";
 import { CAR_GAP, COLLISION, closestApproach, isValidPath } from "../src/model/train.ts";
 import type { TrainId } from "../src/model/types.ts";
 import { sampleLayout, scenicPresets } from "../src/presets.ts";
@@ -41,7 +41,7 @@ describe("built-in yards", () => {
           const [engine] = cars;
           const [was] = before.get(train.id)!;
           const moved = Math.hypot(engine.x - was.x, engine.y - was.y);
-          expect(moved).toBeLessThanOrEqual(1.6 * STEP + 1e-9);
+          expect(moved).toBeLessThanOrEqual(SPEED * STEP + 1e-9);
           travelled.set(train.id, (travelled.get(train.id) ?? 0) + moved);
         }
         const trains = [...after.values()];

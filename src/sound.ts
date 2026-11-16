@@ -1,3 +1,8 @@
+import type { EngineType } from "./catalog.ts";
+
+/** A horn for each engine, and the station bell. */
+export type CallType = EngineType | "station";
+
 type Synth = (t: number, noise: number, rumble: number) => number;
 
 interface RollingLoop {
@@ -83,12 +88,7 @@ const calls = {
       (0.22 * tone(880, time) + 0.085 * tone(1320, time) + 0.045 * tone(2190, time));
     return ring(t) + ring(t - 0.19);
   },
-} satisfies Record<string, Synth>;
-export type CallType = keyof typeof calls;
-
-function isCall(type: string): type is CallType {
-  return Object.hasOwn(calls, type);
-}
+} satisfies Record<CallType, Synth>;
 
 function makeBuffer(context: BaseAudioContext, seconds: number, synth: Synth, loop = false) {
   const length = Math.round(SAMPLE_RATE * seconds);
@@ -189,8 +189,8 @@ export class TrainSound {
     this.update(null, this.speed);
   }
 
-  call(type: string) {
-    if (!this.enabled || this.hidden || !isCall(type)) return;
+  call(type: CallType) {
+    if (!this.enabled || this.hidden) return;
     this.unlock();
     const { context, master } = this;
     if (!context || !master) return;

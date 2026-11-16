@@ -15,8 +15,9 @@ const scope = self as unknown as WorkerScope;
 let engine: Engine | undefined;
 
 function tick(now: number) {
-  engine!.frame(now);
+  // Ask for the next frame first, so one failed frame can't stop the trains for good.
   scope.requestAnimationFrame(tick);
+  engine!.frame(now);
 }
 
 scope.onmessage = ({ data }) => {

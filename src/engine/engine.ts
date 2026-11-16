@@ -3,67 +3,32 @@
  * worker, takes messages from the page and draws through a renderer. Nothing here touches a
  * canvas, so it runs in tests too.
  */
-import { indexAt, isEngine } from "../railway.ts";
-import type { Board, Car, CarPosition, ColorName, StockType, Tile, TrackType } from "../railway.ts";
+import { indexAt } from "../railway.ts";
+import { isEngine } from "../catalog.ts";
+import type { CarPosition, Tile } from "../railway.ts";
+import type { Car, StockType, TrackType } from "../catalog.ts";
 import { applyEdit } from "../model/edits.ts";
 import type { Edit, EditResult } from "../model/edits.ts";
 import { carAt } from "../model/queries.ts";
 import { carPositionsOn, placeCar } from "../model/train.ts";
-import type { BoardPoint, CarRef, Motion, TrainId, Yard } from "../model/types.ts";
+import type { BoardPoint, CarRef, TrainId, Yard } from "../model/types.ts";
 import { createStore } from "../store.ts";
-import { sampleLayout } from "../presets.ts";
+import { sampleLayout, scenicPresets } from "../presets.ts";
+import { fromSaved, toSaved } from "../saves.ts";
 import type {
   BoardFraction,
   FromWorker,
   HeldPiece,
-  PictureSpec,
+  PageEdit,
   Request,
   RequestType,
   Requests,
   Square,
   ToWorker,
 } from "./protocol.ts";
+import type { Frame, Renderer, Scene } from "./scene.ts";
 
-/** The board as the scene layer shows it: a drag previews its edit, and the square under it is marked. */
-export interface Scene {
-  readonly board: Board;
-  readonly highlight: {
-    readonly column: number;
-    readonly row: number;
-    readonly index: number;
-    /** Whether a drop or tap here would do something. */
-    readonly valid: boolean;
-    /** Where a held car would land. */
-    readonly car: CarPosition | null;
-  } | null;
-}
-
-/** What changes every frame. */
-export interface Frame {
-  readonly yard: Yard;
-  readonly motion: Motion;
-  readonly movingTrains: ReadonlySet<TrainId>;
-  readonly speed: number;
-}
-
-export interface Renderer {
-  /** Sets the board's size in device pixels and redraws it right away. */
-  resize(width: number, height: number, scene: () => Scene, frame: Frame): void;
-  /** The scenery, and so everything over it, needs redrawing. */
-  groundChanged(): void;
-  /** The track or the drag preview needs redrawing. */
-  sceneChanged(): void;
-  /** The trains need redrawing. */
-  frameChanged(): void;
-  /** Whether the next frame must be drawn: something changed, or steam or a crane is moving. */
-  readonly needsFrame: boolean;
-  /** Draws the frame, asking for the scene only when it must be redrawn. */
-  render(scene: () => Scene, frame: Frame, now: number, emitSmoke: boolean): void;
-  swingCrane(car: CarRef, now: number): void;
-  /** Clears steam and crane swings, for a newly loaded or blank yard. */
-  resetEffects(): void;
-  picture(spec: PictureSpec): Promise<Blob>;
-}
+export type { Frame, Renderer, Scene } from "./scene.ts";
 
 /** A grid square under the pointer or keyboard focus, with the exact point inside it. */
 interface Cell {
@@ -74,46 +39,38 @@ interface Cell {
   index: number;
 }
 
-type PaletteItem =
-  | { kind: "track"; type: TrackType; color?: undefined; tile?: undefined; train?: undefined }
-  | { kind: "cars"; type: StockType; color: ColorName; tile?: undefined; train?: undefined };
-interface BoardCar extends Car {
-  kind: "board";
-  index: number;
-  train: TrainId;
-  carIndex: number;
-  tile?: undefined;
+/** Something picked up: a new piece from the palette, or a piece already on the board. */
+type Grabbed =
+  | { readonly kind: "new-track"; readonly type: TrackType }
+  | { readonly kind: "new-car"; readonly car: Car }
+  | { readonly kind: "board-track"; readonly index: number; readonly tile: Tile }
+  | { readonly kind: "board-car"; readonly index: number; readonly car: Car; readonly ref: CarRef };
+type OnBoard = Extract<Grabbed, { kind: "board-track" | "board-car" }>;
+type TrackPiece = Extract<Grabbed, { kind: "new-track" | "board-track" }>;
+type Droppable = Exclude<Grabbed, { kind: "board-car" }>;
+
+const isTrack = (item: Grabbed | undefined): item is TrackPiece =>
+  item?.kind === "new-track" || item?.kind === "board-track";
+
+const toEdit = (edit: PageEdit): Edit =>
+  edit.type === "replace" ? { type: "replace", yard: fromSaved(edit.yard) } : edit;
+
+export interface EngineOptions {
+  /** The yard to start with; Meadow Loop by default. */
+  readonly initial?: Yard;
+  readonly clock?: () => number;
 }
-interface BoardTile {
-  kind: "board";
-  index: number;
-  tile: Tile;
-  type: TrackType;
-  color?: undefined;
-  train?: undefined;
-}
-interface BoardSquare {
-  kind: "board";
-  index: number;
-  tile: null;
-  type?: undefined;
-  color?: undefined;
-  train?: undefined;
-}
-type BoardItem = BoardCar | BoardTile | BoardSquare;
-type Item = PaletteItem | BoardItem;
-type TrackMove = Extract<PaletteItem, { kind: "track" }> | BoardTile;
 
 const NO_TRAINS: ReadonlySet<TrainId> = new Set();
 
 export function createEngine(
   renderer: Renderer,
   post: (message: FromWorker) => void,
-  clock: () => number = () => performance.now(),
+  { initial = sampleLayout(), clock = () => performance.now() }: EngineOptions = {},
 ) {
-  const store = createStore(sampleLayout());
+  const store = createStore(initial);
   let speed = 1;
-  let held: { item: Item; moved: boolean } | null = null;
+  let held: { item: Grabbed; moved: boolean } | null = null;
   let hover: Cell | null = null;
   let movingTrains = NO_TRAINS;
   let rolling = "";
@@ -174,73 +131,69 @@ export function createEngine(
     y: cell.y - cell.row,
   });
 
-  function movesTrack(item: Item | undefined): item is TrackMove {
-    return item?.kind === "track" || Boolean(item?.tile);
-  }
-
-  function trackEdit(item: TrackMove, index: number): Edit {
-    return item.tile
+  function trackEdit(item: TrackPiece, index: number): Edit {
+    return item.kind === "board-track"
       ? { type: "moveTrack", from: item.index, to: index }
       : { type: "placeTrack", at: index, track: item.type };
   }
 
-  function dispatch(edit: Edit) {
+  /** Applies an edit, telling the page if it was refused. */
+  function dispatch(edit: Edit): EditResult {
     const result = store.dispatch(edit);
     if (!result.ok) post({ type: "refused", reason: result.reason });
+    return result;
   }
 
-  function boardItem(cell: Cell): BoardItem {
+  /** The car or track on a square; a car wins over the track under it. */
+  function onBoard(cell: Cell): OnBoard | null {
     const hit = carAt(store.yard, store.motion, boardPoint(cell), true);
     const train = hit && store.yard.trains.find((train) => train.id === hit.trainId);
     if (hit && train) {
-      return {
-        kind: "board",
-        index: cell.index,
-        train: train.id,
-        carIndex: hit.carIndex,
-        ...train.cars[hit.carIndex],
-      };
+      return { kind: "board-car", index: cell.index, car: train.cars[hit.carIndex], ref: hit };
     }
     const tile = store.yard.board.grid[cell.index];
-    return tile
-      ? { kind: "board", index: cell.index, tile, type: tile.type }
-      : { kind: "board", index: cell.index, tile: null };
+    return tile ? { kind: "board-track", index: cell.index, tile } : null;
   }
 
-  function dropPiece(cell: Cell, item: TrackMove | Extract<PaletteItem, { kind: "cars" }>) {
-    if (movesTrack(item)) {
-      if (item.tile && cell.index === item.index) return;
-      return dispatch(trackEdit(item, cell.index));
+  function dropPiece(cell: Cell, item: Droppable) {
+    if (item.kind === "new-car") {
+      dispatch({ type: "addCar", car: item.car, at: boardPoint(cell) });
+    } else if (item.kind === "new-track" || cell.index !== item.index) {
+      dispatch(trackEdit(item, cell.index));
     }
-    dispatch({ type: "addCar", car: { type: item.type, color: item.color }, at: boardPoint(cell) });
   }
 
-  function removePiece(item: BoardItem) {
-    if (item.train !== undefined) {
-      return dispatch({ type: "removeCar", car: { trainId: item.train, carIndex: item.carIndex } });
+  function removePiece(item: OnBoard | null) {
+    if (item?.kind === "board-car") dispatch({ type: "removeCar", car: item.ref });
+    else if (item) dispatch({ type: "removeTrack", at: item.index });
+  }
+
+  function tapBoard(cell: Cell, item: OnBoard | null = onBoard(cell)) {
+    if (item?.kind === "board-car") {
+      const { type } = item.car;
+      if (isEngine(type)) post({ type: "call", sound: type });
+      else if (type === "crane") renderer.swingCrane(item.ref, clock());
+    } else if (item) {
+      dispatch({ type: "turn", at: cell.index });
     }
-    dispatch({ type: "removeTrack", at: item.index });
-  }
-
-  function tapBoard(cell: Cell, item: BoardItem = boardItem(cell)) {
-    if (item.train !== undefined && isEngine(item.type)) post({ type: "call", sound: item.type });
-    else if (item.train !== undefined && item.type === "crane") {
-      renderer.swingCrane({ trainId: item.train, carIndex: item.carIndex }, clock());
-    } else if (store.yard.board.grid[cell.index]) dispatch({ type: "turn", at: cell.index });
   }
 
   /** What the page shows while the item is held. */
-  function heldPiece(item: Item): HeldPiece | null {
-    if (item.kind === "board" && !item.type) return null;
-    if (item.kind === "cars" || item.train !== undefined) {
-      return { kind: "cars", type: item.type as StockType, color: item.color! };
+  function heldPiece(item: Grabbed): HeldPiece {
+    switch (item.kind) {
+      case "new-track":
+        return { kind: "track", tile: { type: item.type, turn: 0, branch: false } };
+      case "board-track":
+        return { kind: "track", tile: item.tile };
+      case "new-car":
+      case "board-car":
+        return { kind: "cars", type: item.car.type, color: item.car.color };
     }
-    return { kind: "track", tile: item.tile ?? { type: item.type!, turn: 0, branch: false } };
   }
 
   function scene(): Scene {
     const item = held?.item;
-    const trackDrop = hover && movesTrack(item) ? item : null;
+    const trackDrop = hover && isTrack(item) ? item : null;
     // A drag previews the edit without committing it.
     const preview: EditResult | null =
       trackDrop && hover
@@ -253,14 +206,9 @@ export function createEngine(
       ? Boolean(preview?.ok) || (preview?.ok === false && preview.reason === "no-change")
       : Boolean(board.grid[index]);
     let car: CarPosition | null = null;
-    if (valid && item?.kind === "cars") {
+    if (valid && item?.kind === "new-car") {
       const placed = placeCar(board, index, hover.x - column, hover.y - row)!;
-      [car] = carPositionsOn(
-        placed.history,
-        placed.progress,
-        [{ type: item.type, color: item.color }],
-        board.cols,
-      );
+      [car] = carPositionsOn(placed.history, placed.progress, [item.car], board.cols);
     }
     return { board, highlight: { column, row, index, valid, car } };
   }
@@ -283,30 +231,47 @@ export function createEngine(
     post({ type: "reply", id, value });
   }
 
+  function grab(from: Requests["grab"]["message"]["from"]): HeldPiece | null {
+    if (held) return null;
+    let item: Grabbed | null;
+    if (!("kind" in from)) {
+      const cell = cellAt(from);
+      item = cell && onBoard(cell);
+    } else if (from.kind === "track") {
+      item = { kind: "new-track", type: from.type };
+    } else {
+      item = { kind: "new-car", car: { type: from.type, color: from.color } };
+    }
+    if (!item) return null;
+    held = { item, moved: false };
+    return heldPiece(item);
+  }
+
   function answer(request: Request) {
     switch (request.type) {
       case "edit": {
-        const result = store.dispatch(request.edit);
+        const result = dispatch(toEdit(request.edit));
         return reply<"edit">(request.id, result.ok ? { ok: true } : result);
       }
-      case "grab": {
-        const { from } = request;
-        if (held) return reply<"grab">(request.id, null);
-        let item: Item | null;
-        if ("kind" in from) {
-          item = { ...from };
-        } else {
-          const cell = cellAt(from);
-          item = cell && boardItem(cell);
-        }
-        if (item) held = { item, moved: false };
-        return reply<"grab">(request.id, item && heldPiece(item));
-      }
+      case "grab":
+        return reply<"grab">(request.id, grab(request.from));
       case "picture":
-        return void renderer.picture(request.spec).then((blob) => reply(request.id, blob));
+        // A picture that fails, synchronously or not, is reported like any other failure.
+        return void Promise.resolve(request.spec)
+          .then((spec) => renderer.picture(spec))
+          .then(
+            (blob) => reply<"picture">(request.id, blob),
+            (error: unknown) => fail(request.id, error),
+          );
       case "yard":
-        return reply<"yard">(request.id, store.yard);
+        return reply<"yard">(request.id, toSaved(store.yard));
+      case "builtIns":
+        return reply<"builtIns">(request.id, [sampleLayout(), ...scenicPresets()].map(toSaved));
     }
+  }
+
+  function fail(id: number, error: unknown) {
+    post({ type: "failed", id, error: error instanceof Error ? error.message : String(error) });
   }
 
   function release(at: BoardFraction | null, remove: boolean) {
@@ -315,9 +280,9 @@ export function createEngine(
     held = null;
     hover = null;
     const target = cellAt(at);
-    if (item.kind === "board") {
+    if (item.kind === "board-track" || item.kind === "board-car") {
       if (moved && remove) removePiece(item);
-      else if (moved && target && item.tile) dropPiece(target, item);
+      else if (moved && target && item.kind === "board-track") dropPiece(target, item);
       else if (!moved && target?.index === item.index) tapBoard(target, item);
     } else if (target && moved) {
       dropPiece(target, item);
@@ -349,7 +314,7 @@ export function createEngine(
           held.moved = true;
           const { item } = held;
           // Cars on the board are lifted off it, so they mark no square.
-          hover = item.kind === "board" && !item.tile ? null : cellAt(message.at);
+          hover = item.kind === "board-car" ? null : cellAt(message.at);
           return renderer.sceneChanged();
         }
         case "release":
@@ -360,12 +325,16 @@ export function createEngine(
           return renderer.sceneChanged();
         case "keyboard": {
           hover = message.square && squareCell(message.square);
-          if (hover && message.action === "remove") removePiece(boardItem(hover));
+          if (hover && message.action === "remove") removePiece(onBoard(hover));
           else if (hover && message.action === "tap") tapBoard(hover);
           return renderer.sceneChanged();
         }
         default:
-          return answer(message);
+          try {
+            return answer(message);
+          } catch (error) {
+            return fail(message.id, error);
+          }
       }
     },
 

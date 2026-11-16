@@ -85,16 +85,14 @@ describe("library settings", () => {
 });
 
 describe("yard library", () => {
+  const meadow = () => toSaved(sampleLayout());
+
   test("saves, lists, replaces by name and deletes yards", async () => {
     const library = localLibrary();
-    const yard = sampleLayout();
+    const yard = meadow();
     await library.save({ ...yard, name: "Mine" });
     await library.save({ ...yard, name: "MINE", background: "desert" });
-    const listed = await library.list();
-    expect(listed.map(({ name, background }) => ({ name, background }))).toEqual([
-      { name: "MINE", background: "desert" },
-    ]);
-    expect(toSaved(listed[0]).grid).toEqual(toSaved(yard).grid);
+    expect(await library.list()).toEqual([{ ...yard, name: "MINE", background: "desert" }]);
     await library.delete("mine");
     expect(await library.list()).toEqual([]);
   });
@@ -104,7 +102,14 @@ describe("yard library", () => {
     await library.storage.create(yardBlobKey("broken"), new Blob(["{"]));
     await library.storage.create(yardBlobKey("odd"), new Blob(['{"name":"Odd"}']));
     await library.storage.create("notes.txt", new Blob(["hello"]));
-    await library.save(sampleLayout());
-    expect((await library.list()).map((yard) => yard.name)).toEqual([sampleLayout().name]);
+    await library.save(meadow());
+    expect((await library.list()).map((yard) => yard.name)).toEqual([meadow().name]);
+  });
+
+  test("skips a yard stored under another name's key, which saving or deleting would miss", async () => {
+    const library = localLibrary();
+    const yard = meadow();
+    await library.storage.create(yardBlobKey("elsewhere"), new Blob([JSON.stringify(yard)]));
+    expect(await library.list()).toEqual([]);
   });
 });
