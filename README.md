@@ -33,7 +33,7 @@ Docker Compose runs the browser app through Nginx and a small Node.js service fo
 
 ## Type checking
 
-The repository is set up for TypeScript with strict typing, erasable syntax only, and isolated modules, targeting ES2025 to match the latest Safari. Run `npm install`, then `npm run typecheck`. New modules can be written as `.mts`. The existing `.mjs` files aren't checked until you add `// @ts-check` at the top of a file.
+The repository is set up for TypeScript with strict typing, erasable syntax only, and isolated modules, targeting ES2025 to match the latest Safari. Run `npm install`, then `npm test`. New modules can be written as `.mts`. The existing `.mjs` files aren't checked until you add `// @ts-check` at the top of a file.
 
 ## License
 

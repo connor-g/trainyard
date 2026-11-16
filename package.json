@@ -4,7 +4,7 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "typecheck": "tsc -p ."
+    "test": "tsc"
   },
   "devDependencies": {
     "@types/node": "26.6.6",
