@@ -31,6 +31,8 @@ Run `docker compose down` to stop the app. Your saved yards stay on disk.
 
 Docker Compose runs the browser app through Nginx and a small Node.js service for saving and loading layouts. The built-in layouts are defined in [src/railway.ts](src/railway.ts) and [presets.ts](presets.ts). The service creates any missing presets at startup. It stores yard saves in `saved-yards/`, which Git ignores.
 
+[layout.schema.json](layout.schema.json) is a JSON Schema (draft 2020-12) for yard files. It describes what the service saves and accepts, so you can check a hand-edited or generated yard before loading it. Set a yard file's `"$schema"` key to the schema's path to get completion and validation in your editor; the service drops that key when it saves.
+
 ## Development
 
 The app is built with [Vite+](https://viteplus.dev/). Run `npm install`, then:

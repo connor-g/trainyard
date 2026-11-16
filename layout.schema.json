@@ -1,0 +1,500 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Train yard layout",
+  "description": "A saved train yard, as stored in saved-yards/ and sent to PUT /api/layouts. Mirrors validate() in layouts.ts. Two rules are not expressible here: a train's progress must not exceed the length of its last history segment, and names are compared case-insensitively when saving.",
+  "type": "object",
+  "required": ["name", "grid", "trains"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional editor hint. The server drops it when saving."
+    },
+    "name": {
+      "type": "string",
+      "description": "Yard name, 1–48 characters with no leading or trailing whitespace.",
+      "minLength": 1,
+      "maxLength": 48,
+      "pattern": "^\\S(?:[\\s\\S]*\\S)?$"
+    },
+    "cols": {
+      "type": "integer",
+      "description": "Grid width in cells. Give cols and rows together, or neither."
+    },
+    "rows": {
+      "type": "integer",
+      "description": "Grid height in cells. Give cols and rows together, or neither."
+    },
+    "grid": {
+      "type": "array",
+      "description": "Cells in row-major order (index = y × cols + x). null is an empty cell.",
+      "items": {
+        "oneOf": [
+          {
+            "type": "null"
+          },
+          {
+            "$ref": "#/$defs/tile"
+          }
+        ]
+      }
+    },
+    "trains": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/train"
+      }
+    },
+    "landscape": {
+      "type": "boolean",
+      "default": false,
+      "description": "Legacy scenery flag. With no background, true shows the meadow and false the plain grass."
+    },
+    "background": {
+      "description": "Scenery behind the grid. Overrides landscape.",
+      "enum": ["plain", "meadow", "coast", "mountain", "desert"]
+    }
+  },
+  "allOf": [
+    {
+      "oneOf": [
+        {
+          "description": "Standard grid, 17 × 14.",
+          "required": ["cols", "rows"],
+          "properties": {
+            "cols": {
+              "const": 17
+            },
+            "rows": {
+              "const": 14
+            },
+            "grid": {
+              "minItems": 238,
+              "maxItems": 238
+            },
+            "trains": {
+              "$ref": "#/$defs/trainsFor238"
+            }
+          }
+        },
+        {
+          "description": "Large grid, 12 × 9.",
+          "required": ["cols", "rows"],
+          "properties": {
+            "cols": {
+              "const": 12
+            },
+            "rows": {
+              "const": 9
+            },
+            "grid": {
+              "minItems": 108,
+              "maxItems": 108
+            },
+            "trains": {
+              "$ref": "#/$defs/trainsFor108"
+            }
+          }
+        },
+        {
+          "description": "Extra large grid, 9 × 7.",
+          "required": ["cols", "rows"],
+          "properties": {
+            "cols": {
+              "const": 9
+            },
+            "rows": {
+              "const": 7
+            },
+            "grid": {
+              "minItems": 63,
+              "maxItems": 63
+            },
+            "trains": {
+              "$ref": "#/$defs/trainsFor63"
+            }
+          }
+        },
+        {
+          "description": "Biggest grid, 7 × 5.",
+          "required": ["cols", "rows"],
+          "properties": {
+            "cols": {
+              "const": 7
+            },
+            "rows": {
+              "const": 5
+            },
+            "grid": {
+              "minItems": 35,
+              "maxItems": 35
+            },
+            "trains": {
+              "$ref": "#/$defs/trainsFor35"
+            }
+          }
+        },
+        {
+          "description": "Legacy standard grid, 17 × 12. The loader appends two empty rows.",
+          "required": ["cols", "rows"],
+          "properties": {
+            "cols": {
+              "const": 17
+            },
+            "rows": {
+              "const": 12
+            },
+            "grid": {
+              "minItems": 204,
+              "maxItems": 204
+            },
+            "trains": {
+              "$ref": "#/$defs/trainsFor238"
+            }
+          }
+        },
+        {
+          "description": "No size given: the standard 17 × 14 grid.",
+          "not": {
+            "anyOf": [
+              {
+                "required": ["cols"]
+              },
+              {
+                "required": ["rows"]
+              }
+            ]
+          },
+          "properties": {
+            "grid": {
+              "minItems": 238,
+              "maxItems": 238
+            },
+            "trains": {
+              "$ref": "#/$defs/trainsFor238"
+            }
+          }
+        },
+        {
+          "description": "No size given, legacy 17 × 12 grid. The loader appends two empty rows.",
+          "not": {
+            "anyOf": [
+              {
+                "required": ["cols"]
+              },
+              {
+                "required": ["rows"]
+              }
+            ]
+          },
+          "properties": {
+            "grid": {
+              "minItems": 204,
+              "maxItems": 204
+            },
+            "trains": {
+              "$ref": "#/$defs/trainsFor238"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "$defs": {
+    "tile": {
+      "type": "object",
+      "required": ["type", "turn"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "description": "Track piece.",
+          "enum": [
+            "straight",
+            "curve",
+            "cross",
+            "right",
+            "left",
+            "buffer",
+            "station",
+            "bridge",
+            "tunnel",
+            "wye"
+          ]
+        },
+        "turn": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3,
+          "description": "Clockwise quarter turns."
+        },
+        "branch": {
+          "type": "boolean",
+          "default": false,
+          "description": "For switches, whether the branch route is set."
+        }
+      }
+    },
+    "train": {
+      "type": "object",
+      "required": ["cars", "history", "progress"],
+      "additionalProperties": false,
+      "properties": {
+        "cars": {
+          "type": "array",
+          "description": "Cars from front to back. At least one must be an engine.",
+          "minItems": 1,
+          "maxItems": 24,
+          "items": {
+            "$ref": "#/$defs/car"
+          },
+          "contains": {
+            "properties": {
+              "type": {
+                "enum": ["steam", "diesel", "electric", "snowplow"]
+              }
+            }
+          }
+        },
+        "history": {
+          "type": "array",
+          "description": "Track segments the train has covered, oldest first. The last is where the front car is.",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/segment"
+          }
+        },
+        "progress": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Distance along the last history segment, in cells. Must not exceed that segment's length."
+        }
+      }
+    },
+    "car": {
+      "type": "object",
+      "required": ["type", "color"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "steam",
+            "diesel",
+            "electric",
+            "box",
+            "tank",
+            "flat",
+            "hopper",
+            "caboose",
+            "passenger",
+            "log",
+            "crane",
+            "snowplow",
+            "tender"
+          ]
+        },
+        "color": {
+          "enum": [
+            "brick",
+            "coral",
+            "amber",
+            "mint",
+            "pine",
+            "teal",
+            "ocean",
+            "violet",
+            "pink",
+            "cream",
+            "brown",
+            "slate"
+          ]
+        }
+      }
+    },
+    "port": {
+      "type": "integer",
+      "minimum": -1,
+      "maximum": 3,
+      "description": "Tile edge: 0 top, 1 right, 2 bottom, 3 left (clockwise), or -1 for a buffer stop's dead end."
+    },
+    "point": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "segment": {
+      "type": "object",
+      "description": "A path across one cell. Only index, from and to are read; the other fields are derived geometry that the server recomputes.",
+      "required": ["index", "from", "to"],
+      "additionalProperties": false,
+      "properties": {
+        "index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Grid cell index."
+        },
+        "from": {
+          "$ref": "#/$defs/port"
+        },
+        "to": {
+          "$ref": "#/$defs/port"
+        },
+        "a": {
+          "$ref": "#/$defs/point"
+        },
+        "b": {
+          "$ref": "#/$defs/point"
+        },
+        "length": {
+          "type": "number"
+        },
+        "cx": {
+          "type": "number"
+        },
+        "cy": {
+          "type": "number"
+        },
+        "angle": {
+          "type": "number"
+        },
+        "turn": {
+          "type": "number"
+        }
+      },
+      "not": {
+        "description": "from and to must differ.",
+        "anyOf": [
+          {
+            "properties": {
+              "from": {
+                "const": -1
+              },
+              "to": {
+                "const": -1
+              }
+            }
+          },
+          {
+            "properties": {
+              "from": {
+                "const": 0
+              },
+              "to": {
+                "const": 0
+              }
+            }
+          },
+          {
+            "properties": {
+              "from": {
+                "const": 1
+              },
+              "to": {
+                "const": 1
+              }
+            }
+          },
+          {
+            "properties": {
+              "from": {
+                "const": 2
+              },
+              "to": {
+                "const": 2
+              }
+            }
+          },
+          {
+            "properties": {
+              "from": {
+                "const": 3
+              },
+              "to": {
+                "const": 3
+              }
+            }
+          }
+        ]
+      }
+    },
+    "trainsFor238": {
+      "description": "Train limits for a grid with 238 cells.",
+      "maxItems": 238,
+      "items": {
+        "properties": {
+          "history": {
+            "maxItems": 952,
+            "items": {
+              "properties": {
+                "index": {
+                  "maximum": 237
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "trainsFor108": {
+      "description": "Train limits for a grid with 108 cells.",
+      "maxItems": 108,
+      "items": {
+        "properties": {
+          "history": {
+            "maxItems": 432,
+            "items": {
+              "properties": {
+                "index": {
+                  "maximum": 107
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "trainsFor63": {
+      "description": "Train limits for a grid with 63 cells.",
+      "maxItems": 63,
+      "items": {
+        "properties": {
+          "history": {
+            "maxItems": 252,
+            "items": {
+              "properties": {
+                "index": {
+                  "maximum": 62
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "trainsFor35": {
+      "description": "Train limits for a grid with 35 cells.",
+      "maxItems": 35,
+      "items": {
+        "properties": {
+          "history": {
+            "maxItems": 140,
+            "items": {
+              "properties": {
+                "index": {
+                  "maximum": 34
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
