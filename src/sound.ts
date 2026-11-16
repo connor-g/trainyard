@@ -49,9 +49,6 @@ const rollingSounds = {
     const hum = 0.75 + 0.25 * tone(4, t);
     return hum * (0.085 * tone(120, t) + 0.055 * tone(240, t) + 0.14 * rumble);
   },
-  snowplow(t, noise, rumble) {
-    return (0.8 + 0.2 * tone(7, t)) * (0.14 * tone(52, t) + 0.07 * tone(104, t) + 0.3 * rumble);
-  },
 } satisfies Record<string, Synth>;
 
 const calls = {
@@ -79,10 +76,6 @@ const calls = {
       second * (0.23 * tone(523, t) + 0.09 * tone(1046, t)) +
       0.07 * (first + second) * rumble
     );
-  },
-  snowplow(t, noise, rumble) {
-    const blast = envelope(t, 0, 0.055, 0.32) + envelope(t, 0.34, 0.06, 0.54);
-    return blast * (0.24 * tone(147, t) + 0.17 * tone(196, t) + 0.09 * tone(294, t) + 0.1 * rumble);
   },
   station(t) {
     const ring = (time: number) =>

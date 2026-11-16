@@ -28,7 +28,7 @@ Open the address the dev server prints. To play from another device on your home
 
 ## Layouts and saves
 
-The built-in layouts are defined in [src/railway.ts](src/railway.ts) and [src/presets.ts](src/presets.ts). Saved yards are stored in the browser's local storage, so they stay on the device and browser where you saved them.
+The built-in layouts are defined in [src/presets.ts](src/presets.ts). Saved yards are stored in the browser's local storage, so they stay on the device and browser where you saved them. A save holds the yard as built, with each train at its start position, so reloading the page starts every train from where it was placed.
 
 ## Development
 
@@ -37,8 +37,15 @@ The app is built with [Vite+](https://viteplus.dev/). Run `npm install`, then:
 - `npm run dev` starts the dev server.
 - `npm run build` builds the app into `dist/`.
 - `npm run check` checks formatting and runs lint and type checks. `npm run fix` formats the code and applies lint fixes.
+- `npm test` runs the tests in `test/`. They check game rules and state (edits, undo, collisions, stations and saves) rather than recording exact train positions.
 
 The app's source is in `src/`, with `index.html` at the repository root. Files in `public/` are copied to the build unchanged.
+
+- `src/railway.ts` holds the catalogs and track geometry.
+- `src/model/` is the game model, with no state of its own. A `Yard` is what the player built (the board, background and each train's cars and start path) and `Motion` is where the trains are right now. Both are immutable: their types are deeply `readonly`, so the compiler rejects changes in place. `applyEdit` turns an edit into a new yard and motion, and `step` advances the trains.
+- `src/store.ts` holds the current yard, the motion and an in-memory undo stack. Undo reverses one edit and never rewinds train movement.
+- `src/saves.ts` reads and writes saved yards in local storage.
+- `src/yard.ts` is the page: input, rendering, sound and dialogs.
 
 TypeScript is set up with strict typing, erasable syntax only, and isolated modules, targeting ES2025 to match the latest Safari. All source files are TypeScript (`.ts`).
 
