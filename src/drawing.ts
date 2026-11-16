@@ -1,11 +1,20 @@
-import { COLS, ROWS, COLORS, isSwitch, pointOn, segment, trackPaths } from "./railway.ts";
-import type { Car, Grid, Point, Position, Segment, Tile } from "./railway.ts";
+import {
+  COLS,
+  COLORS,
+  TUNNEL_HALF_LENGTH,
+  TUNNEL_HALF_WIDTH,
+  isSwitch,
+  pointOn,
+  segment,
+  structureJoins,
+  trackPaths,
+} from "./railway.ts";
+import type { Background, Board, Car, Joins, Point, Position, Segment, Tile } from "./railway.ts";
 
 type Context = CanvasRenderingContext2D;
 type Paint = string | CanvasGradient;
 type Radii = number | number[];
 type Shades = readonly string[];
-type Joins = readonly [start: boolean, end: boolean];
 
 export interface SteamPuff {
   x: number;
@@ -184,15 +193,6 @@ function depot(ctx: Context, x: number, y: number) {
   for (const sx of [-0.34, 0.22]) rounded(ctx, sx, 0.015, 0.12, 0.1, 0.01, "#f2d59b", "#7f5639");
   ctx.restore();
 }
-
-export const BACKGROUNDS = {
-  plain: "Grass",
-  meadow: "Meadow",
-  coast: "Coast",
-  mountain: "Mountains",
-  desert: "Desert",
-};
-export type Background = keyof typeof BACKGROUNDS;
 
 function polygon(ctx: Context, points: readonly Point[], color: Paint) {
   ctx.beginPath();
@@ -423,10 +423,10 @@ function desert(ctx: Context, rand: () => number) {
   }
 }
 
-export function drawGround(ctx: Context, background: Background | true, cols = COLS, rows = ROWS) {
+export function drawGround(ctx: Context, background: Background, cols: number, rows: number) {
   ctx.save();
   ctx.scale(cols / COLS, rows / SCENE_ROWS);
-  const theme = background === true ? "meadow" : background;
+  const theme = background;
   const rand = randomSource(4737);
   const grass = ctx.createLinearGradient(0, 0, COLS, SCENE_ROWS);
   const grounds: Partial<Record<Background, [string, string, string]>> = {
@@ -577,46 +577,18 @@ function rail(ctx: Context, path: Segment, offset: number, color: Paint, width: 
   line(ctx, points, color, width);
 }
 
-const tunnelHalfLength = 0.4;
-const tunnelHalfWidth = 0.27;
 // Overlap joined segments slightly so canvas antialiasing cannot leave a hairline gap.
 const joinedHalfLength = 0.515;
 
-function structureJoins(
-  grid: Grid | undefined,
-  x: number,
-  y: number,
-  cols: number,
-  tile: Tile,
-): Joins {
-  if (!grid) return [false, false];
-  const vertical = tile.turn % 2;
-  const joined = (step: number) => {
-    const nx = x + (vertical ? 0 : step);
-    const ny = y + (vertical ? step : 0);
-    if (nx < 0 || nx >= cols || ny < 0 || ny * cols >= grid.length) return false;
-    const neighbor = grid[ny * cols + nx];
-    return neighbor?.type === tile.type && neighbor.turn % 2 === vertical;
-  };
-  return [joined(-1), joined(1)];
-}
-
-export function drawTunnelRoof(
-  ctx: Context,
-  tile: Tile,
-  x: number,
-  y: number,
-  grid?: Grid,
-  cols = COLS,
-) {
-  const [joinStart, joinEnd] = structureJoins(grid, x, y, cols, tile);
-  const start = joinStart ? -joinedHalfLength : -tunnelHalfLength;
-  const end = joinEnd ? joinedHalfLength : tunnelHalfLength;
+export function drawTunnelRoof(ctx: Context, tile: Tile, x: number, y: number, board?: Board) {
+  const [joinStart, joinEnd] = structureJoins(board, x, y, tile);
+  const start = joinStart ? -joinedHalfLength : -TUNNEL_HALF_LENGTH;
+  const end = joinEnd ? joinedHalfLength : TUNNEL_HALF_LENGTH;
   ctx.save();
   ctx.translate(x + 0.5, y + 0.5);
   ctx.rotate(((tile.turn % 2) * Math.PI) / 2);
   ctx.fillStyle = "#758277";
-  ctx.fillRect(start, -tunnelHalfWidth, end - start, 2 * tunnelHalfWidth);
+  ctx.fillRect(start, -TUNNEL_HALF_WIDTH, end - start, 2 * TUNNEL_HALF_WIDTH);
   const ridgeStart = joinStart ? start : -0.38;
   const ridgeEnd = joinEnd ? end : 0.38;
   polygon(
@@ -685,21 +657,6 @@ export function drawTunnelRoof(
     }
   }
   ctx.restore();
-}
-
-export function underTunnelRoof(grid: Grid, x: number, y: number, cols: number) {
-  const col = Math.floor(x);
-  const row = Math.floor(y);
-  if (col < 0 || col >= cols || row < 0) return false;
-  const tile = grid[row * cols + col];
-  if (tile?.type !== "tunnel") return false;
-  const vertical = tile.turn % 2;
-  const along = vertical ? y - row - 0.5 : x - col - 0.5;
-  const across = vertical ? x - col - 0.5 : y - row - 0.5;
-  if (Math.abs(across) > tunnelHalfWidth) return false;
-  if (Math.abs(along) <= tunnelHalfLength) return true;
-  const joins = structureJoins(grid, col, row, cols, tile);
-  return joins[along < 0 ? 0 : 1];
 }
 
 function trackScenery(ctx: Context, tile: Tile, foreground: boolean, joins: Joins) {
@@ -790,12 +747,11 @@ function trackScenery(ctx: Context, tile: Tile, foreground: boolean, joins: Join
   ctx.restore();
 }
 
-export function drawTile(ctx: Context, tile: Tile, x = 0, y = 0, grid?: Grid, cols = COLS) {
+export function drawTile(ctx: Context, tile: Tile, x = 0, y = 0, board?: Board) {
   ctx.save();
   ctx.translate(x, y);
   const paths = trackPaths(tile, true).map(([from, to]) => segment(0, from, to));
-  const joins: Joins =
-    tile.type === "bridge" ? structureJoins(grid, x, y, cols, tile) : [false, false];
+  const joins: Joins = tile.type === "bridge" ? structureJoins(board, x, y, tile) : [false, false];
   trackScenery(ctx, tile, false, joins);
   if (isSwitch(tile) && !tile.branch) paths.reverse();
   for (const path of paths) rail(ctx, path, 0, "#ad956e", 0.42);
@@ -1210,50 +1166,6 @@ export function drawCar(ctx: Context, car: Car, x: number, y: number, angle = 0,
         0.024,
       );
       ctx.restore();
-      break;
-    case "snowplow":
-      shape(-0.3, -0.143, 0.52, 0.286, 0.05);
-      shape(-0.115, -0.133, 0.21, 0.266, 0.04);
-      line(
-        ctx,
-        [
-          [0.057, -0.087],
-          [0.057, 0.087],
-        ],
-        glass,
-        0.035,
-      );
-      polygon(
-        ctx,
-        [
-          [0.13, -0.17],
-          [0.22, -0.164],
-          [0.37, 0],
-          [0.22, 0.164],
-          [0.13, 0.17],
-        ],
-        "#e7b54f",
-      );
-      line(
-        ctx,
-        [
-          [0.2, -0.155],
-          [0.37, 0],
-          [0.2, 0.155],
-        ],
-        "#594630",
-        0.031,
-      );
-      line(
-        ctx,
-        [
-          [0.235, -0.097],
-          [0.283, -0.054],
-          [0.24, -0.036],
-        ],
-        "#fbdf96",
-        0.022,
-      );
       break;
     case "tender":
       shape(-0.304, -0.154, 0.608, 0.308, 0.04);
