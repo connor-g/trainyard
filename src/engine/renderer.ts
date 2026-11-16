@@ -8,11 +8,7 @@
  *   sketch:      palette pieces, background samples and yard thumbnails, one at a time.
  * Layers are marked stale and redrawn at most once per frame.
  */
-import { COLS, ROWS, cellAt } from "../railway.ts";
-import type { Board } from "../railway.ts";
-import { initialMotion } from "../model/motion.ts";
-import { carPositions, underTunnelRoof, visibleTile } from "../model/queries.ts";
-import type { CarRef, TrainId, Yard } from "../model/types.ts";
+
 import {
   drawCar,
   drawGround,
@@ -22,9 +18,14 @@ import {
   steamPuff,
 } from "../drawing.ts";
 import type { SteamPuff } from "../drawing.ts";
+import { initialMotion } from "../model/motion.ts";
+import { carPositions, underTunnelRoof, visibleTile } from "../model/queries.ts";
+import type { CarRef, TrainId, Yard } from "../model/types.ts";
+import { COLS, ROWS, cellAt } from "../railway.ts";
+import type { Board } from "../railway.ts";
 import { fromSaved } from "../saves.ts";
-import type { Frame, Renderer, Scene } from "./scene.ts";
 import type { PictureSpec } from "./protocol.ts";
+import type { Frame, Renderer, Scene } from "./scene.ts";
 
 type Context = OffscreenCanvasRenderingContext2D;
 type Puff = SteamPuff & { start: number; drift: number };

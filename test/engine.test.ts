@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vite-plus/test";
-import { indexAt } from "../src/railway.ts";
+
 import type { Car } from "../src/catalog.ts";
 import { createEngine } from "../src/engine/engine.ts";
 import type { Renderer, Scene } from "../src/engine/engine.ts";
@@ -12,6 +12,7 @@ import type {
 } from "../src/engine/protocol.ts";
 import { carPositions } from "../src/model/queries.ts";
 import type { Yard } from "../src/model/types.ts";
+import { indexAt } from "../src/railway.ts";
 import { blankSaved, parseSaved, toSaved } from "../src/saves.ts";
 import { addTrain, stateOf, yardWith } from "./helpers.ts";
 import type { Piece } from "./helpers.ts";

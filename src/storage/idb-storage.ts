@@ -1,6 +1,7 @@
 /** Stores blobs in the browser with IndexedDB, so they stay on this device and browser. */
 import { openDB } from "idb";
 import type { DBSchema, IDBPDatabase } from "idb";
+
 import { BlobExistsError, BlobNotFoundError, assertKey } from "./blob-storage.ts";
 import type { BlobInfo, BlobStorage } from "./blob-storage.ts";
 

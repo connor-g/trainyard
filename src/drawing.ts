@@ -1,3 +1,5 @@
+import { COLORS } from "./catalog.ts";
+import type { Background, Car } from "./catalog.ts";
 import {
   COLS,
   TUNNEL_HALF_LENGTH,
@@ -8,9 +10,7 @@ import {
   structureJoins,
   trackPaths,
 } from "./railway.ts";
-import { COLORS } from "./catalog.ts";
 import type { Board, Joins, Point, Position, Segment, Tile } from "./railway.ts";
-import type { Background, Car } from "./catalog.ts";
 
 type Context = OffscreenCanvasRenderingContext2D;
 type Paint = string | CanvasGradient;

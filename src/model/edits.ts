@@ -1,8 +1,8 @@
-import { cellAt, indexAt, nextSegments, onward, pathKey, routesAt, segment } from "../railway.ts";
 import { isEngine } from "../catalog.ts";
-import { fitTrack, rotateTrack } from "../track-fitting.ts";
-import type { Board, Grid, GridSize, Segment, Tile } from "../railway.ts";
 import type { Background, Car, TrackType } from "../catalog.ts";
+import { cellAt, indexAt, nextSegments, onward, pathKey, routesAt, segment } from "../railway.ts";
+import type { Board, Grid, GridSize, Segment, Tile } from "../railway.ts";
+import { fitTrack, rotateTrack } from "../track-fitting.ts";
 import type { TrackEdit } from "../track-fitting.ts";
 import { initialMotion, motionOf, remapMotion } from "./motion.ts";
 import { carAt, carPositions, isValidStart, occupiedSquares } from "./queries.ts";

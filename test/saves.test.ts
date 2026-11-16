@@ -1,8 +1,9 @@
 import { describe, expect, test } from "vite-plus/test";
-import { createStore } from "../src/store.ts";
+
 import { sampleLayout, scenicPresets } from "../src/presets.ts";
 import { blankSaved, fromSaved, parseSaved, toSaved } from "../src/saves.ts";
 import type { SavedYard } from "../src/saves.ts";
+import { createStore } from "../src/store.ts";
 
 /** Saves go through JSON, so tests read them back the same way. */
 const throughJson = (saved: SavedYard): unknown => JSON.parse(JSON.stringify(saved));

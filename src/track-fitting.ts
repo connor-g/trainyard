@@ -1,9 +1,10 @@
 /** How a placed piece turns to meet its neighbours, and what tapping a piece does. */
+
+import { TRACK } from "./catalog.ts";
+import type { TrackType } from "./catalog.ts";
 import { ENDS, OPPOSITE, hasPort, isSwitch, neighbor } from "./railway.ts";
 import type { Board, Tile } from "./railway.ts";
-import { TRACK } from "./catalog.ts";
 import type { Port } from "./railway.ts";
-import type { TrackType } from "./catalog.ts";
 
 type Orientation = Pick<Tile, "type" | "turn"> & { branch?: boolean };
 

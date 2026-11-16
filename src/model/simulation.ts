@@ -1,7 +1,7 @@
-import { neighbor, onward, pathKey, position } from "../railway.ts";
 import { isEngine } from "../catalog.ts";
-import type { Board, CarPosition, Segment } from "../railway.ts";
 import type { Car, StockType } from "../catalog.ts";
+import { neighbor, onward, pathKey, position } from "../railway.ts";
+import type { Board, CarPosition, Segment } from "../railway.ts";
 import {
   CAR_GAP,
   COLLISION,

@@ -3,18 +3,19 @@
  * worker, takes messages from the page and draws through a renderer. Nothing here touches a
  * canvas, so it runs in tests too.
  */
-import { indexAt } from "../railway.ts";
+
 import { isEngine } from "../catalog.ts";
-import type { CarPosition, Tile } from "../railway.ts";
 import type { Car, StockType, TrackType } from "../catalog.ts";
 import { applyEdit } from "../model/edits.ts";
 import type { Edit, EditResult } from "../model/edits.ts";
 import { carAt } from "../model/queries.ts";
 import { carPositionsOn, placeCar } from "../model/train.ts";
 import type { BoardPoint, CarRef, TrainId, Yard } from "../model/types.ts";
-import { createStore } from "../store.ts";
 import { sampleLayout, scenicPresets } from "../presets.ts";
+import { indexAt } from "../railway.ts";
+import type { CarPosition, Tile } from "../railway.ts";
 import { fromSaved, toSaved } from "../saves.ts";
+import { createStore } from "../store.ts";
 import type {
   BoardFraction,
   FromWorker,

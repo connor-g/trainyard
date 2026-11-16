@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vite-plus/test";
-import { fitTrack, rotateTrack } from "../src/track-fitting.ts";
+
 import type { Tile } from "../src/railway.ts";
+import { fitTrack, rotateTrack } from "../src/track-fitting.ts";
 import { at, yardWith } from "./helpers.ts";
 
 describe("fitTrack", () => {

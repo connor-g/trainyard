@@ -1,5 +1,6 @@
 /** Stores blobs in an S3-compatible bucket (AWS S3, Cloudflare R2, MinIO, ...) with signed requests. */
 import { AwsClient } from "aws4fetch";
+
 import { BlobExistsError, BlobNotFoundError, assertKey } from "./blob-storage.ts";
 import type { BlobInfo, BlobStorage } from "./blob-storage.ts";
 
