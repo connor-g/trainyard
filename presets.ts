@@ -1,12 +1,17 @@
-import { blankLayout, couple, indexAt, startTrain, trackPaths } from "./src/railway.mjs";
+import { blankLayout, couple, indexAt, startTrain, trackPaths } from "./src/railway.ts";
+import type { ColorName, Layout, Point, StockType, TrackType } from "./src/railway.ts";
 
-function stepPort(x, y, otherX, otherY) {
+type Feature = [x: number, y: number, type: TrackType];
+type CarSpec = [type: StockType, color: ColorName];
+type TrainSpec = [x: number, y: number, cars: CarSpec[], reverse?: boolean];
+
+function stepPort(x: number, y: number, otherX: number, otherY: number) {
   if (x === otherX) return otherY < y ? 0 : 2;
   return otherX > x ? 1 : 3;
 }
 
-function layLoop(yard, corners) {
-  const cells = [];
+function layLoop(yard: Layout, corners: Point[]) {
+  const cells: Point[] = [];
   corners.forEach(([x, y], i) => {
     const [nextX, nextY] = corners[(i + 1) % corners.length];
     const dx = Math.sign(nextX - x);
@@ -17,7 +22,7 @@ function layLoop(yard, corners) {
   });
   cells.forEach(([x, y], i) => {
     const index = indexAt(x, y, yard.cols);
-    const from = stepPort(x, y, ...cells.at(i - 1));
+    const from = stepPort(x, y, ...cells.at(i - 1)!);
     const to = stepPort(x, y, ...cells[(i + 1) % cells.length]);
     const straight = Math.abs(from - to) === 2;
     const previous = yard.grid[index];
@@ -32,19 +37,26 @@ function layLoop(yard, corners) {
       const turn = [0, 1, 2, 3].find((turn) => {
         const [ports] = trackPaths({ type: "curve", turn });
         return ports.includes(from) && ports.includes(to);
-      });
+      })!;
       yard.grid[index] = { type: "curve", turn, branch: false };
     }
   });
 }
 
-function buildYard(name, background, corners, features, trains) {
-  const yard = { ...blankLayout(), name, background };
+function buildYard(
+  name: string,
+  background: string,
+  corners: Point[],
+  features: Feature[],
+  trains: TrainSpec[],
+): Layout {
+  const yard: Layout = { ...blankLayout(), name, background };
   layLoop(yard, corners);
   for (const [x, y, type] of features) {
     const index = indexAt(x, y, yard.cols);
-    if (yard.grid[index]?.type !== "straight") throw new Error("Missing straight track in " + name);
-    yard.grid[index].type = type;
+    const tile = yard.grid[index];
+    if (tile?.type !== "straight") throw new Error("Missing straight track in " + name);
+    tile.type = type;
   }
   for (const [x, y, cars, reverse = false] of trains) {
     const [[type, color], ...coupled] = cars;
@@ -56,7 +68,7 @@ function buildYard(name, background, corners, features, trains) {
       0.5,
       reverse,
       yard.cols,
-    );
+    )!;
     for (const [type, color] of coupled) {
       const error = couple(yard.grid, train, { type, color }, yard.cols);
       if (error) throw new Error(name + ": " + error);
@@ -66,7 +78,7 @@ function buildYard(name, background, corners, features, trains) {
   return yard;
 }
 
-export function scenicPresets() {
+export function scenicPresets(): Layout[] {
   return [
     buildYard(
       "Harbor Line",
