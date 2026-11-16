@@ -52,7 +52,8 @@ The app's source is in `src/`, with `index.html` at the repository root. Files i
 - `src/saves.ts` converts yards to and from their saved shape.
 - `src/storage/` is a blob store: `BlobStorage` (list, create, read, update, delete) with an IndexedDB implementation (`idb-storage.ts`, using [idb](https://github.com/jakearchibald/idb)) and an S3-compatible one (`s3-storage.ts`, signing requests with [aws4fetch](https://github.com/mhart/aws4fetch)). The S3 tests run against an in-memory bucket served by [MSW](https://mswjs.io/).
 - `src/libraries.ts` holds the storage libraries: their settings (kept in local storage, with the IndexedDB library always present and used by default) and `YardLibrary` for saving and listing yards in one library's blob store.
-- `src/yard.ts` is the page: input, rendering, sound and dialogs.
+- `src/engine/` runs in a Web Worker and owns the running yard: the store, the trains, undo, what a drag or tap does, and all drawing. `engine.ts` handles the page's messages (listed in `protocol.ts`) and needs no canvas, so it is tested directly; `renderer.ts` draws on the board canvas the page hands over with `transferControlToOffscreen`, keeping cached `OffscreenCanvas` layers for the scenery and the track, and paints the palette pictures and thumbnails the page shows as images; `worker.ts` wires the two together and runs the frame loop.
+- `src/yard.ts` is the page: the DOM, pointer and keyboard input, sound and dialogs. It holds no yard state; it sends the worker edits and input, and shows the status, pictures and sounds the worker sends back.
 
 TypeScript is set up with strict typing, erasable syntax only, and isolated modules, targeting ES2025 to match the latest Safari. All source files are TypeScript (`.ts`).
 

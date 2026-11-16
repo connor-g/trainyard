@@ -11,7 +11,7 @@ import {
 } from "./railway.ts";
 import type { Background, Board, Car, Joins, Point, Position, Segment, Tile } from "./railway.ts";
 
-type Context = CanvasRenderingContext2D;
+type Context = OffscreenCanvasRenderingContext2D;
 type Paint = string | CanvasGradient;
 type Radii = number | number[];
 type Shades = readonly string[];

@@ -234,7 +234,7 @@
     --enter-scale: 0.96;
     --duration-enter: 180ms;
 
-    /* Aspect ratios of the canvases drawn by drawing.ts */
+    /* Aspect ratios of the pictures drawn by drawing.ts */
     --ratio-piece: 176 / 120;
     --ratio-yard-thumbnail: 12 / 7;
 
@@ -675,7 +675,7 @@
       cursor: grabbing;
     }
 
-    & canvas {
+    & img {
       inline-size: min(100%, var(--size-34));
       block-size: auto;
       min-block-size: 0;
@@ -687,7 +687,7 @@
     @media (width <= 1100px) and (orientation: portrait) {
       font-size: var(--text-subhead);
 
-      & canvas {
+      & img {
         inline-size: min(100%, var(--size-24));
       }
     }
@@ -695,13 +695,13 @@
     @media (width <= 560px) and (orientation: portrait) {
       font-size: var(--text-caption2);
 
-      & canvas {
+      & img {
         max-block-size: var(--size-10);
       }
     }
 
     @media (height <= 770px) and (orientation: landscape) {
-      & canvas {
+      & img {
         inline-size: min(100%, var(--size-20));
       }
     }
@@ -729,7 +729,7 @@
       font-size: clamp(var(--text-callout), var(--fluid-track), var(--text-title3));
       line-height: var(--leading-tight);
 
-      & canvas {
+      & img {
         inline-size: 100%;
         block-size: 100%;
         max-block-size: none;
@@ -890,13 +890,7 @@
     }
   }
 
-  #ground,
-  #rolling-stock,
-  #tunnel-roofs {
-    pointer-events: none;
-  }
-
-  #rails {
+  #yard-canvas {
     touch-action: none;
     cursor: crosshair;
     user-select: none;
@@ -1080,7 +1074,7 @@
     box-shadow: var(--shadow-lifted);
     pointer-events: none;
 
-    & canvas {
+    & img {
       inline-size: var(--size-16);
       block-size: auto;
     }
@@ -1149,7 +1143,7 @@
     font-size: var(--text-caption);
     font-weight: var(--semibold);
 
-    & canvas {
+    & img {
       inline-size: 100%;
       block-size: auto;
       aspect-ratio: var(--ratio-yard-thumbnail);
@@ -1241,7 +1235,7 @@
       & .library-button {
         margin-block-start: var(--space-2);
       }
-      & .background-option canvas {
+      & .background-option img {
         max-block-size: var(--size-8);
         object-fit: cover;
       }
@@ -1408,7 +1402,7 @@
     font-size: var(--text-footnote);
     font-weight: var(--semibold);
 
-    & canvas {
+    & img {
       display: block;
       inline-size: 100%;
       aspect-ratio: var(--ratio-yard-thumbnail);
