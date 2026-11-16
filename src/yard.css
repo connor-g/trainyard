@@ -111,32 +111,115 @@
       sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
     --serif: ui-serif, "New York", Georgia, Cambria, "Times New Roman", Times, serif;
 
-    --text-title1: 28px; /* line height 32px */
-    --text-title2: 22px; /* line height 28px */
-    --text-title3: 20px; /* line height 24px */
-    --text-headline: 17px; /* semibold */
-    --text-body: 17px;
-    --text-callout: 16px;
-    --text-subhead: 15px;
-    --text-footnote: 13px;
-    --text-caption: 12px;
-    --text-caption2: 11px; /* the HIG minimum */
+    /* Sizes are in rem (1rem = 16px) so the whole interface scales with the root font size. */
+    --text-title1: 1.75rem; /* 28px */
+    --text-title2: 1.375rem; /* 22px */
+    --text-title3: 1.25rem; /* 20px */
+    --text-headline: 1.0625rem; /* 17px, semibold */
+    --text-body: 1.0625rem; /* 17px */
+    --text-callout: 1rem; /* 16px */
+    --text-subhead: 0.9375rem; /* 15px */
+    --text-footnote: 0.8125rem; /* 13px */
+    --text-caption: 0.75rem; /* 12px */
+    --text-caption2: 0.6875rem; /* 11px, the HIG minimum */
+    --leading-title1: 2rem; /* 32px */
+    --leading-title2: 1.75rem; /* 28px */
     --regular: 400;
     --semibold: 600;
 
-    /* Spacing: an 8px grid, with a 4px half step for tight spots. */
-    --space-half: 4px;
-    --space-1: 8px;
-    --space-2: 16px;
-    --space-3: 24px;
-    --space-4: 32px;
+    /*
+     * Spacing scale, for padding, margins, gaps and insets. Whole steps are 8px.
+     * The half steps (-0-5, -1-5) are for padding only; margins and gaps use whole steps.
+     */
+    --space-0: 0;
+    --space-0-5: 0.25rem; /* 4px, padding only */
+    --space-1: 0.5rem; /* 8px */
+    --space-1-5: 0.75rem; /* 12px, padding only */
+    --space-2: 1rem; /* 16px */
+    --space-3: 1.5rem; /* 24px */
 
-    /* Shape and sizing. Card radius = panel radius - its padding, so corners nest concentrically. */
-    --tap: 48px;
-    --radius-panel: 16px;
-    --radius-card: 8px;
-    --radius-control: 8px;
-    --radius-small: 4px;
+    /* Sizing scale: --size-N is N x 8px. */
+    --size-2: 1rem; /* 16px */
+    --size-3: 1.5rem; /* 24px */
+    --size-4: 2rem; /* 32px */
+    --size-5: 2.5rem; /* 40px */
+    --size-6: 3rem; /* 48px */
+    --size-7: 3.5rem; /* 56px */
+    --size-8: 4rem; /* 64px */
+    --size-9: 4.5rem; /* 72px */
+    --size-10: 5rem; /* 80px */
+    --size-12: 6rem; /* 96px */
+    --size-17: 8.5rem; /* 136px */
+
+    /* Layout sizes, also on the 8px grid */
+    --size-sidebar: 20rem; /* 320px */
+    --size-sidebar-compact: 17rem; /* 272px */
+    --size-sidebar-min: 12.5rem; /* 200px */
+    --size-palette-min: 21rem; /* 336px */
+    --size-title-max: 27rem; /* 432px */
+    --size-dialog: 33.5rem; /* 536px */
+    --size-dialog-wide: 39rem; /* 624px */
+
+    /* Touch targets: above the HIG 44pt minimum */
+    --tap: var(--size-6);
+
+    /* Radii. Inner radius = outer radius - padding, so nested corners stay concentric. */
+    --radius-small: 0.25rem; /* 4px */
+    --radius-control: 0.5rem; /* 8px */
+    --radius-card: 0.5rem; /* 8px */
+    --radius-group: 0.75rem; /* 12px */
+    --radius-panel: 1rem; /* 16px */
+
+    /* Lines. Hairlines stay a true 1px at any root font size. */
+    --hairline: 1px;
+    --hairline-thick: calc(var(--hairline) * 2);
+    --focus-ring-width: calc(var(--hairline) * 3);
+    --focus-ring-offset: calc(var(--hairline) * 2);
+    --focus-ring: var(--focus-ring-width) solid var(--focus);
+
+    /* Colour-mix strengths, for tinting a hue into fills, borders and overlays */
+    --mix-faint: 7%;
+    --mix-fill: 14%;
+    --mix-edge: 22%;
+    --mix-border: 45%;
+    --mix-scrim: 40%;
+    --mix-material: 82%;
+
+    /* Elevation */
+    --shadow-segment: 0 var(--hairline) var(--hairline-thick)
+      color-mix(in oklab, var(--shade) var(--mix-faint), transparent);
+    --shadow-lifted: 0 0.3125rem 0.9375rem color-mix(in oklab, var(--shade) 23%, transparent);
+    --shadow-modal: 0 0.9375rem 4.375rem color-mix(in oklab, var(--shade) 28%, transparent);
+    --scrim: color-mix(in oklab, var(--shade) var(--mix-scrim), transparent);
+
+    /* Materials: the translucent, blurred surfaces HIG uses for transient overlays */
+    --material-blur: 1.25rem; /* 20px */
+    --material-saturation: 180%;
+    --material-filter: blur(var(--material-blur)) saturate(var(--material-saturation));
+
+    /* Fluid type: viewport-relative sizes, clamped between text styles */
+    --fluid-brand: 4vw;
+    --fluid-piece: 1.2vw;
+    --fluid-track: 1.55vw;
+
+    /* Line heights for single-line and compact labels */
+    --leading-none: 1;
+    --leading-tight: 1.1;
+    --leading-snug: 1.3;
+
+    /* Interaction */
+    --opacity-disabled: 0.42;
+    --hover-brightness: 0.97;
+    --enter-scale: 0.96;
+    --duration-enter: 180ms;
+
+    /* Aspect ratios of the canvases drawn by drawing.ts */
+    --ratio-piece: 176 / 120;
+    --ratio-yard-thumbnail: 12 / 7;
+
+    /* Stacking */
+    --layer-toast: 2;
+    --layer-drag: 10;
 
     /* Safe areas (the app runs full-screen from the iPad home screen) */
     --safe-top: env(safe-area-inset-top, 0px);
@@ -183,25 +266,25 @@
     touch-action: none;
 
     &:focus-visible {
-      outline: 3px solid var(--focus);
-      outline-offset: 2px;
+      outline: var(--focus-ring);
+      outline-offset: var(--focus-ring-offset);
     }
 
     &:disabled {
-      opacity: 0.42;
+      opacity: var(--opacity-disabled);
       cursor: default;
     }
 
     @media (hover: hover) {
       &:not(:disabled):hover {
-        filter: brightness(0.97);
+        filter: brightness(var(--hover-brightness));
       }
     }
   }
 
   canvas:focus-visible {
-    outline: 3px solid var(--focus);
-    outline-offset: 2px;
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
   }
 
   h3 {
@@ -210,8 +293,8 @@
   }
 
   .icon {
-    inline-size: 24px;
-    block-size: 24px;
+    inline-size: var(--size-3);
+    block-size: var(--size-3);
     flex: none;
   }
 }
@@ -219,8 +302,8 @@
 /* ------------------------------------------------------------------------------------------ */
 @layer layout {
   .topbar {
-    --topbar-height: 72px;
-    --topbar-inline: 24px;
+    --topbar-height: var(--size-9);
+    --topbar-inline: var(--space-3);
 
     flex: none;
     block-size: calc(var(--topbar-height) + var(--safe-top));
@@ -230,127 +313,137 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    border-block-end: 1px solid var(--line);
+    gap: var(--space-2);
+    border-block-end: var(--hairline) solid var(--line);
     background: var(--panel);
 
     @media (width <= 560px) and (orientation: portrait) {
-      --topbar-height: 56px;
-      --topbar-inline: 8px;
-      gap: 8px;
+      --topbar-height: var(--size-7);
+      --topbar-inline: var(--space-1);
+      gap: var(--space-1);
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      --topbar-height: 56px;
+      --topbar-height: var(--size-7);
     }
   }
 
   .studio {
-    --gutter-block: 16px;
-    --gutter-inline: 24px;
+    --sidebar-fluid: 35vw; /* sidebar share of the width on short landscape screens */
+    --palette-share: 52%; /* portrait: the track palette's minimum share of the height */
+    --palette-weight: 0.8fr;
+    --gutter-block: var(--space-2);
+    --gutter-inline: var(--space-3);
 
     display: grid;
     flex: 1;
-    grid-template-columns: 320px minmax(0, 1fr);
+    grid-template-columns: var(--size-sidebar) minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
-    gap: 16px;
+    gap: var(--space-2);
     padding-block: var(--gutter-block) max(var(--gutter-block), var(--safe-bottom));
     padding-inline: max(var(--gutter-inline), var(--safe-left))
       max(var(--gutter-inline), var(--safe-right));
     min-block-size: 0;
 
     @media (width <= 1100px) {
-      --gutter-inline: 12px;
-      grid-template-columns: 272px minmax(0, 1fr);
-      gap: 16px;
+      --gutter-inline: var(--space-1-5);
+      grid-template-columns: var(--size-sidebar-compact) minmax(0, 1fr);
+      gap: var(--space-2);
     }
 
     @media (width <= 1100px) and (orientation: portrait) {
-      --gutter-block: 12px;
-      --gutter-inline: 12px;
+      --gutter-block: var(--space-1-5);
+      --gutter-inline: var(--space-1-5);
       grid-template-columns: minmax(0, 1fr);
       grid-template-rows: minmax(0, 1fr) auto;
-      gap: 8px;
+      gap: var(--space-1);
 
       /* The track palette needs more room than the car palette. */
       &:has(.palette[data-kind="track"]) {
-        grid-template-rows: minmax(0, 1fr) minmax(min(336px, 52%), 0.8fr);
+        grid-template-rows: minmax(0, 1fr) minmax(
+            min(var(--size-palette-min), var(--palette-share)),
+            var(--palette-weight)
+          );
       }
     }
 
     @media (width <= 560px) and (orientation: portrait) {
-      --gutter-block: 8px;
-      --gutter-inline: 8px;
-      gap: 8px;
+      --gutter-block: var(--space-1);
+      --gutter-inline: var(--space-1);
+      gap: var(--space-1);
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      --gutter-block: 8px;
-      grid-template-columns: clamp(200px, 35vw, 320px) minmax(0, 1fr);
-      gap: 8px;
+      --gutter-block: var(--space-1);
+      grid-template-columns: clamp(
+          var(--size-sidebar-min),
+          var(--sidebar-fluid),
+          var(--size-sidebar)
+        ) minmax(0, 1fr);
+      gap: var(--space-1);
     }
   }
 
   .workbench,
   .yard {
     background: var(--panel);
-    border: 1px solid var(--line);
+    border: var(--hairline) solid var(--line);
     border-radius: var(--radius-panel);
     min-inline-size: 0;
     min-block-size: 0;
   }
 
   .workbench {
-    padding: 12px;
+    padding: var(--space-1-5);
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: var(--space-2);
     overflow: clip;
 
     @media (width <= 1100px) and (orientation: portrait) {
       grid-row: 2;
-      gap: 8px;
+      gap: var(--space-1);
     }
 
     @media (width <= 560px) and (orientation: portrait) {
-      padding: 8px;
+      padding: var(--space-1);
     }
 
     @media (height <= 770px) and (orientation: landscape) {
-      gap: 8px;
-      padding: 8px;
+      gap: var(--space-1);
+      padding: var(--space-1);
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      padding: 8px;
-      gap: 8px;
+      padding: var(--space-1);
+      gap: var(--space-1);
     }
   }
 
   .yard {
     display: flex;
     flex-direction: column;
-    padding: 16px;
-    gap: 16px;
+    padding: var(--space-2);
+    gap: var(--space-2);
 
     @media (width <= 1100px) {
-      padding: 12px;
+      padding: var(--space-1-5);
     }
 
     @media (width <= 1100px) and (orientation: portrait) {
       flex: 1;
       min-block-size: 0;
-      padding: 12px;
-      gap: 8px;
+      padding: var(--space-1-5);
+      gap: var(--space-1);
     }
 
     @media (width <= 560px) and (orientation: portrait) {
-      padding: 8px;
+      padding: var(--space-1);
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      padding: 8px;
-      gap: 8px;
+      padding: var(--space-1);
+      gap: var(--space-1);
     }
   }
 }
@@ -361,11 +454,11 @@
   .brand {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: var(--space-2);
     min-inline-size: 0;
 
     & h1 {
-      font: var(--regular) var(--text-title1) / 32px var(--serif);
+      font: var(--regular) var(--text-title1) / var(--leading-title1) var(--serif);
     }
 
     & img {
@@ -374,15 +467,15 @@
     }
 
     @media (width <= 560px) and (orientation: portrait) {
-      gap: 8px;
+      gap: var(--space-1);
 
       & h1 {
-        font-size: clamp(var(--text-subhead), 4vw, var(--text-title2));
+        font-size: clamp(var(--text-subhead), var(--fluid-brand), var(--text-title2));
       }
 
       & img {
-        inline-size: 32px;
-        block-size: 32px;
+        inline-size: var(--size-4);
+        block-size: var(--size-4);
       }
     }
   }
@@ -390,14 +483,14 @@
   .top-actions {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: var(--space-2);
     min-inline-size: 0;
 
     @media (width <= 560px) and (orientation: portrait) {
-      gap: 8px;
+      gap: var(--space-1);
 
       & .button {
-        padding-inline: 8px;
+        padding-inline: var(--space-1);
         min-inline-size: 0;
         font-size: var(--text-caption);
       }
@@ -407,24 +500,27 @@
   .layout-toolbar {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-1);
     min-inline-size: 0;
 
     @media (width <= 560px) and (orientation: portrait) {
-      gap: 8px;
+      gap: var(--space-1);
     }
   }
 
   #layout-name {
-    font: var(--regular) var(--text-title2) / 28px var(--serif);
-    max-inline-size: min(32vw, 432px);
+    --name-fluid: 32vw;
+    --name-fluid-phone: 23vw;
+
+    font: var(--regular) var(--text-title2) / var(--leading-title2) var(--serif);
+    max-inline-size: min(var(--name-fluid), var(--size-title-max));
     min-inline-size: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 
     @media (width <= 560px) and (orientation: portrait) {
-      max-inline-size: 23vw;
+      max-inline-size: var(--name-fluid-phone);
       font-size: var(--text-subhead);
     }
   }
@@ -433,10 +529,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: var(--space-1);
     min-block-size: var(--tap);
-    padding: 0 16px;
-    border: 1px solid var(--line);
+    padding: 0 var(--space-2);
+    border: var(--hairline) solid var(--line);
     border-radius: var(--radius-control);
     background: var(--panel);
     font-size: var(--text-subhead);
@@ -448,7 +544,7 @@
     flex: none;
 
     @media (width <= 560px) and (orientation: portrait) {
-      inline-size: 40px;
+      inline-size: var(--size-5);
       padding: 0;
 
       & span {
@@ -463,8 +559,8 @@
     padding: 0;
 
     & .icon {
-      inline-size: 24px;
-      block-size: 24px;
+      inline-size: var(--size-3);
+      block-size: var(--size-3);
     }
 
     &[aria-pressed="false"] {
@@ -475,12 +571,13 @@
   /* Workbench ----------------------------------------------------------------------------- */
   .tabs {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
     gap: 0;
     flex: none;
-    padding: 4px;
-    border: 1px solid var(--line);
-    border-radius: 12px; /* tab radius + padding, so the corners nest */
+    padding: var(--space-0-5);
+    border: var(--hairline) solid var(--line);
+    border-radius: var(--radius-group); /* tab radius + padding, so the corners nest */
     background: var(--surface-sunken);
   }
 
@@ -488,44 +585,47 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    min-block-size: 56px;
-    padding: 0 4px;
-    border: 1px solid transparent;
-    border-radius: 8px;
+    gap: var(--space-1);
+    min-block-size: var(--size-7);
+    padding: 0 var(--space-0-5);
+    border: var(--hairline) solid transparent;
+    border-radius: var(--radius-control);
     background: transparent;
     font-size: var(--text-headline);
     font-weight: var(--semibold);
     white-space: nowrap;
 
     & .icon {
-      inline-size: 24px;
-      block-size: 24px;
+      inline-size: var(--size-3);
+      block-size: var(--size-3);
     }
 
     &[aria-pressed="true"] {
       background: var(--surface-raised);
       border-color: var(--line);
-      box-shadow: 0 1px 2px color-mix(in oklab, var(--shade) 7%, transparent);
+      box-shadow: var(--shadow-segment);
     }
   }
 
   .palette {
+    --columns: 3;
+    --row-fluid: 6dvh;
+
     display: grid;
     flex: 1;
     min-block-size: 0;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
     grid-auto-rows: minmax(0, 1fr);
-    gap: 8px;
+    gap: var(--space-1);
 
     @media (width <= 1100px) and (orientation: portrait) {
       flex: none;
-      grid-auto-rows: clamp(48px, 6dvh, 80px);
-      gap: 8px;
+      grid-auto-rows: clamp(var(--size-6), var(--row-fluid), var(--size-10));
+      gap: var(--space-1);
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      gap: 8px;
+      gap: var(--space-1);
     }
   }
 
@@ -534,12 +634,12 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 4px 4px 8px;
-    border: 1px solid var(--line);
+    gap: var(--space-1);
+    padding: var(--space-0-5) var(--space-0-5) var(--space-1);
+    border: var(--hairline) solid var(--line);
     border-radius: var(--radius-card);
     background: var(--surface);
-    font-size: clamp(var(--text-caption), 1.2vw, var(--text-callout));
+    font-size: clamp(var(--text-caption), var(--fluid-piece), var(--text-callout));
     font-weight: var(--semibold);
     text-align: center;
     cursor: grab;
@@ -555,10 +655,10 @@
     }
 
     & canvas {
-      inline-size: min(100%, 136px);
+      inline-size: min(100%, var(--size-17));
       block-size: auto;
       min-block-size: 0;
-      aspect-ratio: 176 / 120;
+      aspect-ratio: var(--ratio-piece);
       object-fit: contain;
       pointer-events: none;
     }
@@ -567,7 +667,7 @@
       font-size: var(--text-subhead);
 
       & canvas {
-        inline-size: min(100%, 96px);
+        inline-size: min(100%, var(--size-12));
       }
     }
 
@@ -575,28 +675,28 @@
       font-size: var(--text-caption2);
 
       & canvas {
-        max-block-size: 40px;
+        max-block-size: var(--size-5);
       }
     }
 
     @media (height <= 770px) and (orientation: landscape) {
       & canvas {
-        inline-size: min(100%, 80px);
+        inline-size: min(100%, var(--size-10));
       }
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      padding: 4px;
+      padding: var(--space-0-5);
       gap: 0;
       font-size: var(--text-caption2);
-      line-height: 1;
+      line-height: var(--leading-none);
     }
   }
 
   /* Track pieces fill their cell instead of keeping the card's aspect ratio. */
   .palette[data-kind="track"] {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    --columns: 2;
+    gap: var(--space-1);
 
     @media (width <= 1100px) and (orientation: portrait) {
       flex: 1;
@@ -608,10 +708,10 @@
       grid-template-rows: minmax(0, 1fr) auto;
       align-items: stretch;
       justify-content: stretch;
-      padding: 4px 4px 4px;
-      gap: 8px;
-      font-size: clamp(var(--text-callout), 1.55vw, var(--text-title3));
-      line-height: 1.1;
+      padding: var(--space-0-5) var(--space-0-5) var(--space-0-5);
+      gap: var(--space-1);
+      font-size: clamp(var(--text-callout), var(--fluid-track), var(--text-title3));
+      line-height: var(--leading-tight);
 
       & canvas {
         inline-size: 100%;
@@ -622,7 +722,7 @@
 
       @media (width <= 560px) and (orientation: portrait),
         (height <= 540px) and (orientation: landscape) {
-        padding-block: 0 4px;
+        padding-block: 0 var(--space-0-5);
         gap: 0;
         font-size: var(--text-caption);
       }
@@ -630,7 +730,7 @@
   }
 
   .colors {
-    padding: 0 1px;
+    padding: 0 var(--hairline);
     flex: none;
   }
 
@@ -638,8 +738,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin: 0 0 8px;
-    padding-inline: 4px;
+    margin: 0 0 var(--space-1);
+    padding-inline: var(--space-0-5);
 
     & span {
       color: var(--muted);
@@ -648,21 +748,23 @@
   }
 
   .swatches {
+    --columns: 3;
+
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
+    gap: var(--space-1);
   }
 
   .swatch {
-    --dot: 40px;
+    --dot: var(--size-5);
 
     display: grid;
     place-items: center;
     min-inline-size: 0;
     inline-size: 100%;
-    block-size: 48px;
-    padding: 4px;
-    border: 1px solid transparent;
+    block-size: var(--size-6);
+    padding: var(--space-0-5);
+    border: var(--hairline) solid transparent;
     border-radius: var(--radius-control);
     background: none;
 
@@ -672,24 +774,24 @@
       aspect-ratio: 1;
       border-radius: 50%;
       background: var(--swatch);
-      border: 1px solid color-mix(in oklab, var(--shade) 22%, transparent);
+      border: var(--hairline) solid color-mix(in oklab, var(--shade) var(--mix-edge), transparent);
     }
 
     &[aria-pressed="true"] span {
       box-shadow:
-        0 0 0 1px var(--panel),
-        0 0 0 4px var(--ink);
+        0 0 0 var(--hairline) var(--panel),
+        0 0 0 var(--space-0-5) var(--ink);
     }
 
     @media (width <= 560px) and (orientation: portrait) {
-      --dot: 32px;
-      block-size: 40px;
+      --dot: var(--size-4);
+      block-size: var(--size-5);
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      --dot: 24px;
-      block-size: 32px;
-      padding: 1px;
+      --dot: var(--size-3);
+      block-size: var(--size-4);
+      padding: var(--hairline);
     }
   }
 
@@ -697,7 +799,7 @@
     flex: none;
     display: grid;
     grid-template-columns: 1fr auto;
-    gap: 8px;
+    gap: var(--space-1);
   }
 
   .remove,
@@ -705,16 +807,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    min-block-size: 56px;
-    padding: 4px 12px;
-    border-radius: 12px;
+    gap: var(--space-1);
+    min-block-size: var(--size-7);
+    padding: var(--space-0-5) var(--space-1-5);
+    border-radius: var(--radius-group);
     font-size: var(--text-subhead);
     font-weight: var(--semibold);
   }
 
   .remove {
-    border: 1px dashed var(--dashed);
+    border: var(--hairline) dashed var(--dashed);
     background: var(--surface-sunken);
     color: var(--dashed-ink);
     user-select: none;
@@ -727,14 +829,14 @@
 
     &.targeted {
       background: var(--danger-fill-strong);
-      border: 2px solid var(--danger-border);
+      border: var(--hairline-thick) solid var(--danger-border);
       color: var(--danger-ink-strong);
     }
   }
 
   .undo {
     background: var(--surface);
-    border: 1px solid var(--line);
+    border: var(--hairline) solid var(--line);
   }
 
   /* Shared compact sizing for the big workbench buttons. */
@@ -742,15 +844,15 @@
   .undo,
   .remove {
     @media (width <= 560px) and (orientation: portrait) {
-      min-block-size: 48px;
+      min-block-size: var(--size-6);
     }
 
     @media (height <= 770px) and (orientation: landscape) {
-      min-block-size: 48px;
+      min-block-size: var(--size-6);
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      min-block-size: 40px;
+      min-block-size: var(--size-5);
       font-size: var(--text-caption);
     }
   }
@@ -763,24 +865,26 @@
     display: grid;
     place-items: center;
     overflow: hidden;
-    padding: 12px 12px 12px 8px;
-    border: 1px solid var(--frame-border);
+    padding: var(--space-1-5) var(--space-1-5) var(--space-1-5) var(--space-1);
+    border: var(--hairline) solid var(--frame-border);
     border-radius: var(--radius-card);
     background: var(--frame);
 
     @media (width <= 1100px) and (orientation: portrait) {
-      padding: 8px;
+      padding: var(--space-1);
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      padding: 4px;
+      padding: var(--space-0-5);
     }
   }
 
   /* `resize()` in yard.ts reads the first grid track sizes as the coordinate gutters. */
   .map {
-    --row-labels: 24px;
-    --column-labels: 16px;
+    --cols: 17; /* defaults until yard.ts sets the real grid size */
+    --rows: 14;
+    --row-labels: var(--size-3);
+    --column-labels: var(--size-2);
 
     display: grid;
     grid-template-columns: var(--row-labels) minmax(0, 1fr);
@@ -789,8 +893,8 @@
     block-size: 100%;
 
     @media (width <= 560px) and (orientation: portrait) {
-      --row-labels: 16px;
-      --column-labels: 16px;
+      --row-labels: var(--size-2);
+      --column-labels: var(--size-2);
     }
   }
 
@@ -799,7 +903,7 @@
     font-size: var(--text-caption2);
     font-weight: var(--semibold);
     font-variant-numeric: tabular-nums;
-    line-height: 1;
+    line-height: var(--leading-none);
     pointer-events: none;
 
     @media (width <= 560px) and (orientation: portrait) {
@@ -810,7 +914,7 @@
   .columns {
     grid-column: 2;
     display: grid;
-    grid-template-columns: repeat(var(--cols, 17), minmax(0, 1fr));
+    grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
     align-items: start;
     text-align: center;
   }
@@ -818,7 +922,7 @@
   .rows {
     grid-row: 2;
     display: grid;
-    grid-template-rows: repeat(var(--rows, 14), minmax(0, 1fr));
+    grid-template-rows: repeat(var(--rows), minmax(0, 1fr));
     align-items: center;
     text-align: start;
   }
@@ -827,9 +931,9 @@
     grid-area: 2 / 2;
     position: relative;
     overflow: hidden;
-    border-radius: 8px;
+    border-radius: var(--radius-control);
     background: var(--board);
-    box-shadow: 0 0 0 1px var(--board-edge);
+    box-shadow: 0 0 0 var(--hairline) var(--board-edge);
 
     & canvas {
       position: absolute;
@@ -854,7 +958,7 @@
     -webkit-touch-callout: none;
 
     &:focus-visible {
-      outline-offset: -3px;
+      outline-offset: calc(var(--focus-ring-width) * -1);
     }
   }
 
@@ -862,13 +966,13 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 8px;
-    min-block-size: 40px;
+    gap: var(--space-1);
+    min-block-size: var(--size-5);
 
     /* On narrow phones the hint gets its own row instead of wrapping into a tall column. */
     @media (width <= 560px) and (orientation: portrait) {
       flex-wrap: wrap;
-      row-gap: 8px;
+      row-gap: var(--space-1);
 
       & #tool-hint {
         flex-basis: 100%;
@@ -879,14 +983,14 @@
   #tool-hint {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-1);
     color: var(--muted);
     font-size: var(--text-caption);
-    line-height: 1.3;
+    line-height: var(--leading-snug);
 
     & .icon {
-      inline-size: 16px;
-      block-size: 16px;
+      inline-size: var(--size-2);
+      block-size: var(--size-2);
     }
   }
 
@@ -894,7 +998,7 @@
     display: flex;
     flex: none;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-1);
     margin-inline-start: auto;
   }
 
@@ -902,13 +1006,13 @@
     display: flex;
     flex: none;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-1);
     white-space: nowrap;
     font-size: var(--text-footnote);
     color: var(--muted);
 
     & span {
-      margin-inline-end: 8px;
+      margin-inline-end: var(--space-1);
 
       @media (width <= 560px) and (orientation: portrait) {
         display: none;
@@ -920,7 +1024,7 @@
       place-items: center;
       min-inline-size: var(--tap);
       block-size: var(--tap);
-      border: 1px solid var(--speed-border);
+      border: var(--hairline) solid var(--speed-border);
       border-radius: var(--radius-small);
       background: var(--speed-fill);
       color: var(--speed-ink);
@@ -935,8 +1039,8 @@
 
     /* Each speed has its own system hue, from warm (stopped) to cool (fast). */
     & button {
-      --speed-fill: color-mix(in srgb, var(--speed-hue) 14%, transparent);
-      --speed-border: color-mix(in srgb, var(--speed-hue) 45%, transparent);
+      --speed-fill: color-mix(in srgb, var(--speed-hue) var(--mix-fill), transparent);
+      --speed-border: color-mix(in srgb, var(--speed-hue) var(--mix-border), transparent);
     }
     & [data-speed="0"] {
       --speed-hue: var(--system-orange);
@@ -958,18 +1062,18 @@
 
   .toast {
     position: absolute;
-    inset-block-end: 16px;
+    inset-block-end: var(--space-2);
     inset-inline-start: 50%;
     translate: -50% 0;
-    z-index: 2;
+    z-index: var(--layer-toast);
     inline-size: max-content;
-    max-inline-size: calc(100% - 24px);
-    padding: 8px 12px;
-    border-radius: 8px;
+    max-inline-size: calc(100% - var(--space-3));
+    padding: var(--space-1) var(--space-1-5);
+    border-radius: var(--radius-control);
     /* A translucent material, as HIG uses for transient overlays. */
-    background: color-mix(in srgb, var(--toast) 82%, transparent);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    backdrop-filter: blur(20px) saturate(180%);
+    background: color-mix(in srgb, var(--toast) var(--mix-material), transparent);
+    -webkit-backdrop-filter: var(--material-filter);
+    backdrop-filter: var(--material-filter);
     color: var(--toast-ink);
     font-size: var(--text-footnote);
     text-align: center;
@@ -980,40 +1084,40 @@
   .drag-ghost {
     position: fixed;
     inset: 0 auto auto 0;
-    z-index: 10;
-    inline-size: 72px;
-    block-size: 72px;
+    z-index: var(--layer-drag);
+    inline-size: var(--size-9);
+    block-size: var(--size-9);
     display: grid;
     place-items: center;
-    border: 1px solid var(--selected-border);
+    border: var(--hairline) solid var(--selected-border);
     border-radius: var(--radius-card);
     background: var(--selected-fill);
-    box-shadow: 0 5px 15px color-mix(in oklab, var(--shade) 23%, transparent);
+    box-shadow: var(--shadow-lifted);
     pointer-events: none;
 
     & canvas {
-      inline-size: 64px;
+      inline-size: var(--size-8);
       block-size: auto;
     }
   }
 
   /* Dialogs ------------------------------------------------------------------------------- */
   dialog {
-    inline-size: min(536px, calc(100% - 24px));
-    padding: 24px;
-    border: 1px solid var(--line);
-    border-radius: 16px;
+    inline-size: min(var(--size-dialog), calc(100% - var(--space-3)));
+    padding: var(--space-3);
+    border: var(--hairline) solid var(--line);
+    border-radius: var(--radius-panel);
     background: var(--panel);
     color: var(--ink);
-    box-shadow: 0 15px 70px color-mix(in oklab, var(--shade) 28%, transparent);
+    box-shadow: var(--shadow-modal);
 
     &::backdrop {
-      background: color-mix(in oklab, var(--shade) 40%, transparent);
+      background: var(--scrim);
     }
   }
 
   #layout-library {
-    inline-size: min(624px, calc(100% - 24px));
+    inline-size: min(var(--size-dialog-wide), calc(100% - var(--space-3)));
   }
 
   .dialog-header {
@@ -1022,7 +1126,7 @@
     align-items: center;
 
     & h2 {
-      font: var(--regular) var(--text-title1) / 32px var(--serif);
+      font: var(--regular) var(--text-title1) / var(--leading-title1) var(--serif);
     }
   }
 
@@ -1032,28 +1136,28 @@
     inline-size: var(--tap);
     block-size: var(--tap);
     border: 0;
-    border-radius: 8px;
+    border-radius: var(--radius-control);
     background: var(--surface-sunken);
   }
 
   .layout-heading {
-    margin: 16px 0 8px;
+    margin: var(--space-2) 0 var(--space-1);
   }
 
   .background-options {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(var(--size-9), 1fr));
+    gap: var(--space-1);
   }
 
   .background-option {
     display: grid;
     justify-items: center;
-    gap: 8px;
-    padding: 4px;
+    gap: var(--space-1);
+    padding: var(--space-0-5);
     min-inline-size: 0;
-    border: 1px solid var(--line);
-    border-radius: 8px;
+    border: var(--hairline) solid var(--line);
+    border-radius: var(--radius-control);
     background: var(--surface);
     font-size: var(--text-caption);
     font-weight: var(--semibold);
@@ -1061,27 +1165,27 @@
     & canvas {
       inline-size: 100%;
       block-size: auto;
-      aspect-ratio: 12 / 7;
-      border-radius: 4px;
+      aspect-ratio: var(--ratio-yard-thumbnail);
+      border-radius: var(--radius-small);
       pointer-events: none;
     }
 
     &[aria-pressed="true"] {
       background: var(--selected-fill);
       border-color: var(--selected-border);
-      box-shadow: inset 0 0 0 1px var(--selected-border);
+      box-shadow: inset 0 0 0 var(--hairline) var(--selected-border);
     }
   }
 
   /* `.layout-option` is the base; `.grid-option` and `.library-button` refine it below. */
   .layout-option {
     display: flex;
-    gap: 8px;
+    gap: var(--space-1);
     align-items: center;
     justify-content: center;
-    min-block-size: 56px;
-    padding: 4px;
-    border: 1px solid var(--line);
+    min-block-size: var(--size-7);
+    padding: var(--space-0-5);
+    border: var(--hairline) solid var(--line);
     border-radius: var(--radius-control);
     background: var(--surface);
     font-size: var(--text-footnote);
@@ -1089,16 +1193,18 @@
   }
 
   .grid-options {
+    --columns: 4;
+
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
+    gap: var(--space-1);
   }
 
   .grid-option {
     flex-direction: column;
-    gap: 8px;
-    min-block-size: 48px;
-    line-height: 1.1;
+    gap: var(--space-1);
+    min-block-size: var(--size-6);
+    line-height: var(--leading-tight);
     text-align: center;
 
     & span {
@@ -1115,17 +1221,19 @@
   .library-button {
     inline-size: 100%;
     min-block-size: var(--tap);
-    margin-block-start: 16px;
+    margin-block-start: var(--space-2);
     background: var(--positive-fill);
     border-color: var(--positive-border);
     color: var(--green);
   }
 
   .layout-actions {
+    --primary-weight: 1.3fr;
+
     display: grid;
-    grid-template-columns: 1.3fr 1fr;
-    gap: 8px;
-    margin-block-start: 16px;
+    grid-template-columns: var(--primary-weight) 1fr;
+    gap: var(--space-1);
+    margin-block-start: var(--space-2);
   }
 
   #layout-dialog {
@@ -1135,30 +1243,30 @@
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      padding: 12px;
+      padding: var(--space-1-5);
 
       & .layout-heading {
-        margin: 8px 0 8px;
+        margin: var(--space-1) 0 var(--space-1);
       }
       & .layout-option {
-        min-block-size: 40px;
+        min-block-size: var(--size-5);
       }
       & .library-button {
-        margin-block-start: 8px;
+        margin-block-start: var(--space-1);
       }
       & .background-option canvas {
-        max-block-size: 32px;
+        max-block-size: var(--size-4);
         object-fit: cover;
       }
     }
   }
 
   .library-section {
-    margin-block-start: 16px;
+    margin-block-start: var(--space-2);
 
     & label {
       display: block;
-      margin-block-end: 8px;
+      margin-block-end: var(--space-1);
       font-size: var(--text-subhead);
       font-weight: var(--semibold);
     }
@@ -1166,10 +1274,10 @@
 
   #layout-library {
     @media (height <= 540px) and (orientation: landscape) {
-      padding: 12px;
+      padding: var(--space-1-5);
 
       & .library-section {
-        margin-block-start: 8px;
+        margin-block-start: var(--space-1);
       }
     }
   }
@@ -1177,15 +1285,15 @@
   .library-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 8px;
+    gap: var(--space-1);
 
     & input {
       inline-size: 100%;
       min-inline-size: 0;
-      min-block-size: 48px;
-      padding: 0 8px;
-      border: 1px solid var(--line-strong);
-      border-radius: 8px;
+      min-block-size: var(--size-6);
+      padding: 0 var(--space-1);
+      border: var(--hairline) solid var(--line-strong);
+      border-radius: var(--radius-control);
       background: var(--panel);
       color: var(--ink);
       caret-color: var(--focus);
@@ -1197,20 +1305,20 @@
       }
 
       &:focus-visible {
-        outline: 3px solid var(--focus);
-        outline-offset: 1px;
+        outline: var(--focus-ring);
+        outline-offset: var(--hairline);
       }
     }
 
     & .layout-option {
-      min-block-size: 48px;
-      padding-inline: 8px;
+      min-block-size: var(--size-6);
+      padding-inline: var(--space-1);
       white-space: nowrap;
     }
   }
 
   .library-note {
-    margin: 16px 0 0;
+    margin: var(--space-2) 0 0;
     font-size: var(--text-footnote);
     color: var(--muted);
 
@@ -1220,20 +1328,24 @@
   }
 
   .saved-layouts {
+    --columns: 3;
+
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
-    margin-block-start: 8px;
+    grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
+    gap: var(--space-1);
+    margin-block-start: var(--space-1);
   }
 
   .saved-yard {
+    --thumbnail-fluid: 10dvh;
+
     display: grid;
     justify-items: stretch;
     align-content: start;
-    gap: 8px;
+    gap: var(--space-1);
     min-inline-size: 0;
-    padding: 4px;
-    border: 1px solid var(--line);
+    padding: var(--space-0-5);
+    border: var(--hairline) solid var(--line);
     border-radius: var(--radius-control);
     background: var(--surface);
     text-align: start;
@@ -1243,13 +1355,13 @@
     & canvas {
       display: block;
       inline-size: 100%;
-      aspect-ratio: 12 / 7;
+      aspect-ratio: var(--ratio-yard-thumbnail);
       object-fit: contain;
-      border-radius: 8px;
+      border-radius: var(--radius-control);
       background: var(--frame);
 
       @media (height <= 540px) and (orientation: landscape) {
-        block-size: min(10dvh, 72px);
+        block-size: min(var(--thumbnail-fluid), var(--size-9));
       }
     }
 
@@ -1257,7 +1369,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      padding: 0 4px 4px;
+      padding: 0 var(--space-0-5) var(--space-0-5);
     }
   }
 
@@ -1265,14 +1377,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 16px;
-    margin-block-start: 8px;
+    gap: var(--space-2);
+    margin-block-start: var(--space-1);
     font-size: var(--text-footnote);
     color: var(--muted);
 
     & .layout-option {
-      min-block-size: 40px;
-      padding-inline: 8px;
+      min-block-size: var(--size-5);
+      padding-inline: var(--space-1);
     }
   }
 }
@@ -1281,8 +1393,8 @@
 @layer utilities {
   .sr-only {
     position: absolute;
-    inline-size: 1px;
-    block-size: 1px;
+    inline-size: var(--hairline);
+    block-size: var(--hairline);
     clip-path: inset(50%);
     overflow: hidden;
     white-space: nowrap;
@@ -1292,16 +1404,16 @@
   @media (prefers-reduced-motion: no-preference) {
     dialog[open] {
       transition:
-        opacity 180ms var(--ease-out),
-        scale 180ms var(--ease-out);
+        opacity var(--duration-enter) var(--ease-out),
+        scale var(--duration-enter) var(--ease-out);
 
       @starting-style {
         opacity: 0;
-        scale: 0.96;
+        scale: var(--enter-scale);
       }
 
       &::backdrop {
-        transition: background-color 180ms var(--ease-out);
+        transition: background-color var(--duration-enter) var(--ease-out);
 
         @starting-style {
           background-color: transparent;
@@ -1311,12 +1423,12 @@
 
     .toast {
       transition:
-        opacity 160ms var(--ease-out),
-        translate 160ms var(--ease-out);
+        opacity var(--duration-enter) var(--ease-out),
+        translate var(--duration-enter) var(--ease-out);
 
       @starting-style {
         opacity: 0;
-        translate: -50% 8px;
+        translate: -50% var(--space-1);
       }
     }
   }
