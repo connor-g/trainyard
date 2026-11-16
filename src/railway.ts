@@ -45,7 +45,14 @@ export interface CurvedSegment extends SegmentEnds {
 }
 export type Segment = StraightSegment | CurvedSegment;
 
+/** Unique for the whole session. Assigned when a train is created or a yard is loaded; never saved. */
+export type TrainId = number & { readonly __brand: "TrainId" };
+
+let lastTrainId = 0;
+export const nextTrainId = () => ++lastTrainId as TrainId;
+
 export interface Train {
+  id: TrainId;
   cars: Car[];
   history: Segment[];
   progress: number;
@@ -67,8 +74,13 @@ export interface Position {
 export type CarPosition = Position & Car;
 
 interface StationStop {
-  path: Segment;
+  path: string;
   remaining: number;
+}
+interface CrossingRequest {
+  path: string;
+  crossing: number;
+  order: number;
 }
 interface CrossingApproach {
   path: Segment;
@@ -76,6 +88,19 @@ interface CrossingApproach {
   untilStop: number;
   order?: number;
 }
+
+/** Simulation bookkeeping that isn't part of a train's position, keyed by train. */
+export interface SimState {
+  stationStops: Map<TrainId, StationStop>;
+  crossingRequests: Map<TrainId, CrossingRequest>;
+  crossingArrival: number;
+}
+
+export const initialSimState = (): SimState => ({
+  stationStops: new Map(),
+  crossingRequests: new Map(),
+  crossingArrival: 0,
+});
 
 export const COLS = 17;
 export const ROWS = 14;
@@ -126,11 +151,8 @@ const QUARTER_TURN = Math.PI / 2;
 const CAR_GAP = 0.7;
 const MAX_CARS = 24;
 const STATION_STOP_SECONDS = 1.6;
-const stationStops = new WeakMap<Train, StationStop>();
 const CROSSING_CLEARANCE = 0.38;
 const CROSSING_STOP_DISTANCE = 0.42;
-const crossingRequests = new WeakMap<Train, CrossingApproach>();
-let crossingArrival = 0;
 
 /** Catalogs list entries in palette order; `inPalette` entries appear in the palette. */
 interface TrackInfo {
@@ -463,7 +485,7 @@ export function startTrain(
   const reversed = routes.map(([from, to]) => segment(index, to, from));
   const candidates = reverse ? [...reversed, ...paths] : [...paths, ...reversed];
   const path = candidates.find((candidate) => onward(board, candidate)) ?? paths[0];
-  return { cars: [car], history: [path], progress: path.length / 2 };
+  return { id: nextTrainId(), cars: [car], history: [path], progress: path.length / 2 };
 }
 
 export function nearestTrain(
@@ -538,7 +560,7 @@ export function couple(
   return null;
 }
 
-function crossingTraffic(board: Board, trains: Train[], distance: number) {
+function crossingTraffic(board: Board, trains: Train[], sim: SimState, distance: number) {
   const { grid } = board;
   const owners = new Map<number, Train>();
   const approaches = new Map<Train, CrossingApproach>();
@@ -558,12 +580,12 @@ function crossingTraffic(board: Board, trains: Train[], distance: number) {
       behind += i === headIndex ? train.progress : segment.length;
     }
     if (!next) {
-      crossingRequests.delete(train);
+      sim.crossingRequests.delete(train.id);
       continue;
     }
     const untilStop = path.length - train.progress - CROSSING_STOP_DISTANCE;
     if (untilStop > distance) {
-      crossingRequests.delete(train);
+      sim.crossingRequests.delete(train.id);
       continue;
     }
     approaches.set(train, { path, crossing: next.index, untilStop });
@@ -576,12 +598,17 @@ function crossingTraffic(board: Board, trains: Train[], distance: number) {
   // For arrivals within the same frame, the closer train reached the stop line first.
   const arrivals = [...approaches].sort(([, a], [, b]) => a.untilStop - b.untilStop);
   for (const [train, approach] of arrivals) {
-    const previous = crossingRequests.get(train);
-    if (previous?.path === approach.path && previous.crossing === approach.crossing) {
+    const previous = sim.crossingRequests.get(train.id);
+    const path = pathKey(approach.path);
+    if (previous?.path === path && previous.crossing === approach.crossing) {
       approach.order = previous.order;
     } else {
-      approach.order = crossingArrival++;
-      crossingRequests.set(train, approach);
+      approach.order = sim.crossingArrival++;
+      sim.crossingRequests.set(train.id, {
+        path,
+        crossing: approach.crossing,
+        order: approach.order,
+      });
     }
   }
   arrivals.sort(([, a], [, b]) => a.order! - b.order!);
@@ -594,6 +621,7 @@ function crossingTraffic(board: Board, trains: Train[], distance: number) {
 export function advance(
   board: Board,
   trains: Train[],
+  sim: SimState,
   distance: number,
   seconds = distance / 1.6,
   onStation: () => void = () => {},
@@ -602,7 +630,10 @@ export function advance(
   const { grid, cols } = board;
   const movingEngines = new Set<StockType>();
   const occupied = trains.map((train) => carPositions(train, cols));
-  const traffic = trains.length > 1 ? crossingTraffic(board, trains, distance) : null;
+  const ids = new Set(trains.map((train) => train.id));
+  for (const id of sim.stationStops.keys()) if (!ids.has(id)) sim.stationStops.delete(id);
+  for (const id of sim.crossingRequests.keys()) if (!ids.has(id)) sim.crossingRequests.delete(id);
+  const traffic = trains.length > 1 ? crossingTraffic(board, trains, sim, distance) : null;
   trains.forEach((train, index) => {
     let path = head(train);
     const crossing = grid[path.index]?.type === "cross" ? path : null;
@@ -616,8 +647,14 @@ export function advance(
       ownerPath.from % 2 !== crossing.from % 2
     )
       return;
-    const stop = stationStops.get(train);
-    if (stop?.path === path && stop.remaining > 0) {
+    const key = pathKey(path);
+    let stop = sim.stationStops.get(train.id);
+    if (stop && stop.path !== key) {
+      // The train has left the platform, so it can stop there again next time round.
+      sim.stationStops.delete(train.id);
+      stop = undefined;
+    }
+    if (stop && stop.remaining > 0) {
       stop.remaining -= seconds;
       return;
     }
@@ -630,7 +667,7 @@ export function advance(
     const midpoint = path.length / 2;
     const arriving =
       grid[path.index]?.type === "station" &&
-      stop?.path !== path &&
+      !stop &&
       train.progress <= midpoint &&
       progress >= midpoint &&
       distance > 0;
@@ -669,7 +706,7 @@ export function advance(
     if (next) train.history.push(next);
     train.progress = progress;
     if (arriving) {
-      stationStops.set(train, { path, remaining: STATION_STOP_SECONDS });
+      sim.stationStops.set(train.id, { path: pathKey(path), remaining: STATION_STOP_SECONDS });
       onStation();
     }
     let remaining = (train.cars.length - 1) * CAR_GAP - progress;

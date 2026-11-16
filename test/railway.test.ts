@@ -6,6 +6,7 @@ import {
   couple,
   fitTrack,
   indexAt,
+  initialSimState,
   rotateTrack,
   startTrain,
 } from "../src/railway.ts";
@@ -145,11 +146,12 @@ describe("couple", () => {
 describe("advance", () => {
   test("two trains take turns at a crossing without touching", () => {
     const yard = scenicPresets().find((preset) => preset.name === "Red Mesa Crossing")!;
+    const sim = initialSimState();
     let closest = Infinity;
     const travelled = yard.trains.map(() => 0);
     for (let frame = 0; frame < 60 * 60; frame += 1) {
       const before = yard.trains.map((train) => carPositions(train, COLS)[0]);
-      advance(yard.board, yard.trains, 1.6 / 60, 1 / 60);
+      advance(yard.board, yard.trains, sim, 1.6 / 60, 1 / 60);
       const [first, second] = yard.trains.map((train) => carPositions(train, COLS));
       for (const a of first) {
         for (const b of second) closest = Math.min(closest, Math.hypot(a.x - b.x, a.y - b.y));
@@ -172,10 +174,11 @@ describe("advance", () => {
       [6, 5, "straight"],
     ]);
     const train = trainOn(yard.board, 3, 5);
+    const sim = initialSimState();
     let stations = 0;
     const xs: number[] = [];
     for (let frame = 0; frame < 240; frame += 1) {
-      advance(yard.board, [train], 1.6 / 60, 1 / 60, () => (stations += 1));
+      advance(yard.board, [train], sim, 1.6 / 60, 1 / 60, () => (stations += 1));
       xs.push(carPositions(train, COLS)[0].x);
     }
     expect(stations).toBe(1);

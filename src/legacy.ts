@@ -1,4 +1,11 @@
-import { STOCK, expandStandardYard, gridSize, isBackground, isEngine } from "./railway.ts";
+import {
+  STOCK,
+  expandStandardYard,
+  gridSize,
+  isBackground,
+  isEngine,
+  nextTrainId,
+} from "./railway.ts";
 import type { Car, Grid, Layout, Segment, Train } from "./railway.ts";
 
 /** The shape the app has always written to local storage. */
@@ -24,7 +31,12 @@ function legacyTrain(value: unknown): Train | null {
   );
   if (!cars.some((car) => isEngine(car.type))) return null;
   if (!value.history.length || typeof value.progress !== "number") return null;
-  return { cars, history: value.history as Segment[], progress: value.progress };
+  return {
+    id: nextTrainId(),
+    cars,
+    history: value.history as Segment[],
+    progress: value.progress,
+  };
 }
 
 /** Reads a yard saved by any earlier version, or returns null if it can't be used. */

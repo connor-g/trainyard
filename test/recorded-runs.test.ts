@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vite-plus/test";
-import { advance, carPositions } from "../src/railway.ts";
+import { advance, carPositions, initialSimState } from "../src/railway.ts";
 import type { Layout } from "../src/railway.ts";
 import { sampleLayout, scenicPresets } from "../src/presets.ts";
 
@@ -12,8 +12,9 @@ const round = (value: number) => Math.round(value * 1e4) / 1e4;
 function record(yard: Layout) {
   const frames: string[] = [];
   let stations = 0;
+  const sim = initialSimState();
   for (let frame = 1; frame <= SECONDS * 60; frame += 1) {
-    advance(yard.board, yard.trains, STEP * 1.6, STEP, () => (stations += 1));
+    advance(yard.board, yard.trains, sim, STEP * 1.6, STEP, () => (stations += 1));
     if (frame % 60) continue;
     const cars = yard.trains.map((train) =>
       carPositions(train, yard.board.cols)

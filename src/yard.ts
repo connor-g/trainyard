@@ -22,6 +22,8 @@ import {
   advance,
   carPositions,
   blankLayout,
+  initialSimState,
+  nextTrainId,
   underTunnelRoof,
 } from "./railway.ts";
 import type {
@@ -38,6 +40,7 @@ import type {
   TrackEdit,
   TrackType,
   Train,
+  TrainId,
 } from "./railway.ts";
 import { sampleLayout, scenicPresets } from "./presets.ts";
 import { fromLegacy, toLegacy } from "./legacy.ts";
@@ -179,13 +182,15 @@ let drag: Drag | null = null;
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 let stockFrame: CarPosition[][] = [];
 let lastFrame: number | undefined;
-let smokeLayout = layout;
+let sim = initialSimState();
 let smokePuffs: Puff[] = [];
-let lastPuff = new WeakMap<Car, number>();
+/** When each steam engine last puffed, keyed by train and car index. */
+let lastPuff = new Map<string, number>();
 const puffLifetime = 760;
-const movingTrains = new Set<Train>();
-const recordMovement = (train: Train) => movingTrains.add(train);
-let activeCrane: { car: Car; start: number } | null = null;
+const movingTrains = new Set<TrainId>();
+const recordMovement = (train: Train) => movingTrains.add(train.id);
+let activeCrane: { trainId: TrainId; carIndex: number; start: number } | null = null;
+const carKey = (trainId: TrainId, carIndex: number) => trainId + ":" + carIndex;
 const craneSwingDuration = 950;
 const ringStation = () => sound.call("station");
 
@@ -276,6 +281,8 @@ function showLibrary() {
     button.onclick = () => {
       const previous = snapshot();
       layout = structuredClone(yard);
+      for (const train of layout.trains) train.id = nextTrainId();
+      resetTrainEffects();
       hover = null;
       keyboardCell = [0, 0];
       if (index === 0) {
@@ -409,9 +416,10 @@ function resetGridNotice() {
   blankAtSize.hidden = true;
 }
 
-function applyGrid(next: Layout) {
+function applyGrid(next: Layout, blank = false) {
   const previous = snapshot();
   layout = next;
+  if (blank) resetTrainEffects();
   hover = null;
   keyboardCell = [0, 0];
   commit(previous);
@@ -442,11 +450,11 @@ for (const size of GRID_SIZES) {
 }
 
 blankAtSize.onclick = () => {
-  if (pendingSize) applyGrid(blankLayout(pendingSize, background()));
+  if (pendingSize) applyGrid(blankLayout(pendingSize, background()), true);
 };
 
 $("start-blank").onclick = () => {
-  applyGrid(blankLayout(layout.board, background()));
+  applyGrid(blankLayout(layout.board, background()), true);
   setPalette("track");
 };
 
@@ -649,31 +657,36 @@ function drawTunnelRoofs(ctx: CanvasRenderingContext2D, board: Board) {
   }
 }
 
+/** Clears steam and crane swings; only a newly loaded or blank yard does this. */
+function resetTrainEffects() {
+  sim = initialSimState();
+  smokePuffs = [];
+  lastPuff = new Map();
+  activeCrane = null;
+}
+
 function redrawStock(now = performance.now(), emitSmoke = false) {
   stockContext.clearRect(0, 0, cols, rows);
-  if (smokeLayout !== layout) {
-    smokeLayout = layout;
-    smokePuffs = [];
-    lastPuff = new WeakMap();
-  }
   stockFrame = layout.trains.map((train) => carPositions(train, cols));
   for (const [trainIndex, cars] of stockFrame.entries()) {
     const train = layout.trains[trainIndex];
     for (const [carIndex, car] of cars.entries()) {
-      const vehicle = train.cars[carIndex];
+      const key = carKey(train.id, carIndex);
       const swing =
-        activeCrane?.car === vehicle ? (now - activeCrane.start) / craneSwingDuration : 0;
+        activeCrane && carKey(activeCrane.trainId, activeCrane.carIndex) === key
+          ? (now - activeCrane.start) / craneSwingDuration
+          : 0;
       const angle = Math.sin(Math.PI * Math.max(0, Math.min(1, swing))) * 1.65;
       drawCar(stockContext, car, car.x, car.y, car.angle, angle);
       if (
         emitSmoke &&
         car.type === "steam" &&
-        movingTrains.has(train) &&
-        now - (lastPuff.get(vehicle) ?? -Infinity) >= 260 / Math.sqrt(speed)
+        movingTrains.has(train.id) &&
+        now - (lastPuff.get(key) ?? -Infinity) >= 260 / Math.sqrt(speed)
       ) {
         const puff = steamPuff(car);
         if (!underTunnelRoof(layout.board, puff.x, puff.y)) {
-          lastPuff.set(vehicle, now);
+          lastPuff.set(key, now);
           smokePuffs.push({ ...puff, start: now, drift: (Math.random() - 0.35) * 0.13 });
         }
       }
@@ -694,6 +707,7 @@ function tick(now: number) {
       advance(
         layout.board,
         layout.trains,
+        sim,
         seconds * speed * 1.6,
         seconds,
         ringStation,
@@ -834,7 +848,7 @@ function boardItem(cell: Cell): BoardItem {
 function tapBoard(cell: Cell, item: BoardItem = boardItem(cell)) {
   if (item.train && isEngine(item.type)) sound.call(item.type);
   else if (item.type === "crane" && item.train.cars[item.carIndex]?.type === "crane") {
-    activeCrane = { car: item.train.cars[item.carIndex], start: performance.now() };
+    activeCrane = { trainId: item.train.id, carIndex: item.carIndex, start: performance.now() };
   } else turnPiece(cell.index);
 }
 
