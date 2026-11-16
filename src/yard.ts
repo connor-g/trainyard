@@ -36,6 +36,7 @@ import type {
   TrackType,
   Train,
 } from "./railway.ts";
+import { scenicPresets } from "./presets.ts";
 import {
   BACKGROUNDS,
   drawGround,
@@ -200,72 +201,40 @@ function load(): Layout {
   return sampleLayout();
 }
 
-const layoutEndpoint = "/api/layouts";
 let libraryEntries: Layout[] = [];
-let libraryBusy = false;
 let libraryPage = 0;
 const yardsPerPage = 5;
 
-async function requestLayout<T>(query = "", layoutToSave?: object): Promise<T> {
-  const options = layoutToSave
-    ? {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(layoutToSave),
-      }
-    : {};
-  const response = await fetch(layoutEndpoint + query, {
-    ...options,
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!response.ok)
-    throw Object.assign(new Error("Saved yard request failed"), { status: response.status });
-  return response.json();
+function readSavedYards(): Layout[] {
+  try {
+    const entries: unknown = JSON.parse(localStorage.getItem(libraryKey) ?? "[]");
+    if (!Array.isArray(entries)) return [];
+    return entries
+      .filter((entry) => typeof entry?.name === "string" && entry.name.trim())
+      .map((entry) => expandStandardYard<Layout>(entry))
+      .filter((yard) => {
+        const { cols, rows } = gridSize(yard);
+        return yard.grid?.length === cols * rows && Array.isArray(yard.trains);
+      });
+  } catch {
+    return [];
+  }
 }
 
-async function importBrowserYards() {
-  let original: string | null = null;
-  let entries: unknown;
-  try {
-    original = localStorage.getItem(libraryKey);
-    if (!original) return false;
-    entries = JSON.parse(original);
-    if (!Array.isArray(entries)) return true;
-  } catch {
-    return Boolean(original);
+function listYards() {
+  // Saved yards replace built-in yards with the same name.
+  const yards = new Map<string, Layout>();
+  for (const yard of [sampleLayout(), ...scenicPresets(), ...readSavedYards()]) {
+    yards.set(layoutNameKey(yard.name), yard);
   }
-  const remaining = [];
-  for (const entry of entries) {
-    const name = typeof entry?.name === "string" ? entry.name.trim() : "";
-    if (!name) {
-      remaining.push(entry);
-      continue;
-    }
-    try {
-      // Keep both layouts when two devices saved different yards under the same name.
-      for (let copy = 0; ; copy += 1) {
-        const suffix = copy === 0 ? "" : copy === 1 ? " (imported)" : " (imported " + copy + ")";
-        const candidate = name.slice(0, 48 - suffix.length) + suffix;
-        try {
-          await requestLayout("?import", { ...entry, name: candidate });
-          break;
-        } catch (error) {
-          if ((error as { status?: number }).status !== 409) throw error;
-        }
-      }
-    } catch {
-      remaining.push(entry);
-    }
-  }
-  try {
-    if (localStorage.getItem(libraryKey) === original) {
-      if (remaining.length) localStorage.setItem(libraryKey, JSON.stringify(remaining));
-      else localStorage.removeItem(libraryKey);
-    }
-  } catch {
-    // The server copies are available even if browser storage cannot be updated.
-  }
-  return Boolean(remaining.length);
+  return [...yards.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function storeYard(yard: Layout) {
+  const key = layoutNameKey(yard.name);
+  const saved = readSavedYards().filter((entry) => layoutNameKey(entry.name) !== key);
+  saved.push(yard);
+  localStorage.setItem(libraryKey, JSON.stringify(saved));
 }
 
 function layoutNameKey(name: string) {
@@ -302,7 +271,6 @@ function showLibrary() {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "saved-yard";
-    button.disabled = libraryBusy;
     const thumbnail = document.createElement("canvas");
     thumbnail.width = 288;
     thumbnail.height = 168;
@@ -312,7 +280,6 @@ function showLibrary() {
     caption.textContent = index === 0 ? "New yard" : yard.name;
     button.append(thumbnail, caption);
     button.onclick = () => {
-      if (libraryBusy) return;
       const previous = snapshot();
       layout = structuredClone(yard);
       hover = null;
@@ -330,8 +297,8 @@ function showLibrary() {
   });
   $("library-pages").hidden = pages === 1;
   $("library-page").textContent = libraryPage + 1 + " / " + pages;
-  $<HTMLButtonElement>("library-prev").disabled = libraryBusy || libraryPage === 0;
-  $<HTMLButtonElement>("library-next").disabled = libraryBusy || libraryPage + 1 >= pages;
+  $<HTMLButtonElement>("library-prev").disabled = libraryPage === 0;
+  $<HTMLButtonElement>("library-next").disabled = libraryPage + 1 >= pages;
   updateSaveLabel(libraryEntries);
 }
 
@@ -343,18 +310,6 @@ $("library-next").onclick = () => {
   libraryPage += 1;
   showLibrary();
 };
-
-function setLibraryBusy(busy: boolean) {
-  libraryBusy = busy;
-  $<HTMLButtonElement>("open-library").disabled = busy;
-  $<HTMLButtonElement>("save-yard").disabled = busy;
-  saveName.disabled = busy;
-  closeLibrary.disabled = busy;
-  for (const button of children<HTMLButtonElement>(savedLayouts)) button.disabled = busy;
-  $<HTMLButtonElement>("library-prev").disabled = busy || libraryPage === 0;
-  $<HTMLButtonElement>("library-next").disabled =
-    busy || (libraryPage + 1) * yardsPerPage >= libraryEntries.length;
-}
 
 function updateSaveLabel(entries: Layout[]) {
   const name = layoutNameKey(saveName.value.trim());
@@ -415,9 +370,6 @@ dialog.querySelector(".close")!.innerHTML = icon("close");
 const closeLibrary = library.querySelector<HTMLButtonElement>(".close")!;
 closeLibrary.innerHTML = icon("close");
 closeLibrary.onclick = () => library.close();
-library.addEventListener("cancel", (event) => {
-  if (libraryBusy) event.preventDefault();
-});
 
 function isBackground(value: unknown): value is Background {
   return typeof value === "string" && Object.hasOwn(BACKGROUNDS, value);
@@ -1067,49 +1019,34 @@ $("layouts").onclick = () => {
   dialog.returnValue = "cancel";
   dialog.showModal();
 };
-$("open-library").onclick = async () => {
+$("open-library").onclick = () => {
   dialog.close("library");
   saveName.value = layout.name;
-  libraryEntries = [];
+  libraryEntries = listYards();
   libraryPage = 0;
+  libraryNote.textContent = "";
   showLibrary();
-  libraryNote.textContent = "Opening saved yards…";
-  setLibraryBusy(true);
   library.showModal();
-  try {
-    const pendingImport = await importBrowserYards();
-    libraryEntries = await requestLayout<Layout[]>("?previews");
-    showLibrary();
-    libraryNote.textContent = pendingImport ? "Some older yards could not be imported." : "";
-  } catch {
-    libraryNote.textContent = "Could not open saved yards. Try again.";
-  } finally {
-    setLibraryBusy(false);
-  }
 };
 saveName.oninput = () => updateSaveLabel(libraryEntries);
-$("save-layout").onsubmit = async (event) => {
+$("save-layout").onsubmit = (event) => {
   event.preventDefault();
-  if (libraryBusy) return;
-  const name = saveName.value.trim();
+  const name = saveName.value.trim().slice(0, 48);
   if (!name) {
     libraryNote.textContent = "Enter a name for your yard.";
     return;
   }
-  const saved = { ...snapshot(), name };
-  setLibraryBusy(true);
   try {
-    await requestLayout("", saved);
-    layout.name = name;
-    save();
-    updateStatus();
-    library.close();
-    notify("Saved " + name + ".");
+    storeYard({ ...snapshot(), name });
   } catch {
     libraryNote.textContent = "Could not save this yard. Try again.";
-  } finally {
-    setLibraryBusy(false);
+    return;
   }
+  layout.name = name;
+  save();
+  updateStatus();
+  library.close();
+  notify("Saved " + name + ".");
 };
 const speedButtons = document.querySelectorAll<HTMLButtonElement>("[data-speed]");
 document.querySelector('[data-speed="0"]')!.innerHTML = icon("pause");

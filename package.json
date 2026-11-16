@@ -7,8 +7,7 @@
     "build": "vp build",
     "check": "vp check",
     "dev": "vp dev",
-    "fix": "vp check --fix",
-    "layouts": "node layouts.ts"
+    "fix": "vp check --fix"
   },
   "devDependencies": {
     "@types/node": "26.6.6",

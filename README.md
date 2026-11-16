@@ -8,17 +8,16 @@ I built the app entirely with Codex and haven’t personally reviewed any of the
 
 ## Run locally
 
-With Docker and Docker Compose installed, run these commands in Terminal.
+With Node.js installed, run these commands in Terminal.
 
 ```sh
 git clone https://github.com/connor-g/trainyard.git
 cd trainyard
-RAIL_YARD_LAN_IP=127.0.0.1 docker compose up --build -d
+npm install
+npm run dev
 ```
 
-Open [http://localhost:8090](http://localhost:8090). To play from another device on your home network, replace `127.0.0.1` in the command with the Docker host's LAN IP, then open `http://<host-ip>:8090` on that device.
-
-Run `docker compose down` to stop the app. Your saved yards stay on disk.
+Open the address the dev server prints. To play from another device on your home network, run `npm run dev -- --host` and open the network address it prints on that device.
 
 ## Build and play
 
@@ -29,19 +28,19 @@ Run `docker compose down` to stop the app. Your saved yards stay on disk.
 
 ## Layouts and saves
 
-Docker Compose runs the browser app through Nginx and a small Node.js service for saving and loading layouts. The built-in layouts are defined in [src/railway.ts](src/railway.ts) and [presets.ts](presets.ts). The service creates any missing presets at startup. It stores yard saves in `saved-yards/`, which Git ignores.
+The built-in layouts are defined in [src/railway.ts](src/railway.ts) and [src/presets.ts](src/presets.ts). Saved yards are stored in the browser's local storage, so they stay on the device and browser where you saved them.
 
 ## Development
 
 The app is built with [Vite+](https://viteplus.dev/). Run `npm install`, then:
 
-- `npm run dev` starts the dev server. Run `npm run layouts` alongside it so saving and loading yards works; the dev server forwards `/api/layouts` to it.
+- `npm run dev` starts the dev server.
 - `npm run build` builds the app into `dist/`.
 - `npm run check` checks formatting and runs lint and type checks. `npm run fix` formats the code and applies lint fixes.
 
 The app's source is in `src/`, with `index.html` at the repository root. Files in `public/` are copied to the build unchanged.
 
-TypeScript is set up with strict typing, erasable syntax only, and isolated modules, targeting ES2025 to match the latest Safari. All source files are TypeScript (`.ts`), and Node runs the layouts service directly by stripping types.
+TypeScript is set up with strict typing, erasable syntax only, and isolated modules, targeting ES2025 to match the latest Safari. All source files are TypeScript (`.ts`).
 
 ## License
 
