@@ -1,6 +1,8 @@
 import { describe, expect, test } from "vite-plus/test";
-import { advance, carPositions, initialSimState } from "../src/railway.ts";
-import type { Layout } from "../src/railway.ts";
+import { initialMotion } from "../src/model/motion.ts";
+import { carPositions } from "../src/model/queries.ts";
+import { initialSimState, step } from "../src/model/simulation.ts";
+import type { Yard } from "../src/model/types.ts";
 import { sampleLayout, scenicPresets } from "../src/presets.ts";
 
 const STEP = 1 / 60;
@@ -9,15 +11,18 @@ const SECONDS = 30;
 const round = (value: number) => Math.round(value * 1e4) / 1e4;
 
 /** Runs the yard with a fixed time step and records car positions once per simulated second. */
-function record(yard: Layout) {
+function record(yard: Yard) {
   const frames: string[] = [];
   let stations = 0;
-  const sim = initialSimState();
+  let motion = initialMotion(yard);
+  let sim = initialSimState();
   for (let frame = 1; frame <= SECONDS * 60; frame += 1) {
-    advance(yard.board, yard.trains, sim, STEP * 1.6, STEP, () => (stations += 1));
+    const next = step(yard, motion, sim, STEP, 1);
+    ({ motion, sim } = next);
+    stations += next.events.stationArrivals;
     if (frame % 60) continue;
-    const cars = yard.trains.map((train) =>
-      carPositions(train, yard.board.cols)
+    const cars = [...carPositions(yard, motion).values()].map((train) =>
+      train
         .map((car) => [car.type, round(car.x), round(car.y), round(car.angle)].join(" "))
         .join(" | "),
     );

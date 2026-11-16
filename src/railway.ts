@@ -8,62 +8,46 @@ export interface GridSize {
 }
 
 export interface Tile {
-  type: TrackType;
-  turn: number;
-  branch: boolean;
+  readonly type: TrackType;
+  readonly turn: number;
+  readonly branch: boolean;
 }
-export type Grid = (Tile | null)[];
+export type Grid = readonly (Tile | null)[];
 
 /** A grid of track squares. The flat grid is meaningless without its width, so they travel together. */
 export interface Board {
-  grid: Grid;
-  cols: number;
-  rows: number;
+  readonly grid: Grid;
+  readonly cols: number;
+  readonly rows: number;
 }
 
 export interface Car {
-  type: StockType;
-  color: ColorName;
+  readonly type: StockType;
+  readonly color: ColorName;
 }
 
-interface SegmentEnds {
-  index: number;
-  from: Port;
-  to: Port;
-  a: Point;
-  b: Point;
-  length: number;
+/** One route across one square, entering at `from` and leaving at `to`. */
+export interface SegmentRef {
+  readonly index: number;
+  readonly from: Port;
+  readonly to: Port;
+}
+
+interface SegmentEnds extends SegmentRef {
+  readonly a: Readonly<Point>;
+  readonly b: Readonly<Point>;
+  readonly length: number;
 }
 export interface StraightSegment extends SegmentEnds {
   turn?: undefined;
 }
 export interface CurvedSegment extends SegmentEnds {
-  cx: number;
-  cy: number;
-  angle: number;
-  turn: number;
+  readonly cx: number;
+  readonly cy: number;
+  readonly angle: number;
+  readonly turn: number;
 }
 export type Segment = StraightSegment | CurvedSegment;
-
-/** Unique for the whole session. Assigned when a train is created or a yard is loaded; never saved. */
-export type TrainId = number & { readonly __brand: "TrainId" };
-
-let lastTrainId = 0;
-export const nextTrainId = () => ++lastTrainId as TrainId;
-
-export interface Train {
-  id: TrainId;
-  cars: Car[];
-  history: Segment[];
-  progress: number;
-}
-
-export interface Layout {
-  name: string;
-  board: Board;
-  background: Background;
-  trains: Train[];
-}
 
 export interface Position {
   x: number;
@@ -72,49 +56,6 @@ export interface Position {
   index: number;
 }
 export type CarPosition = Position & Car;
-
-interface StationStop {
-  path: string;
-  remaining: number;
-}
-interface CrossingRequest {
-  path: string;
-  crossing: number;
-  order: number;
-}
-interface CrossingApproach {
-  path: Segment;
-  crossing: number;
-  untilStop: number;
-  order?: number;
-}
-
-/** Simulation bookkeeping that isn't part of a train's position, keyed by train. */
-export interface SimState {
-  stationStops: Map<TrainId, StationStop>;
-  crossingRequests: Map<TrainId, CrossingRequest>;
-  crossingArrival: number;
-}
-
-export const initialSimState = (): SimState => ({
-  stationStops: new Map(),
-  crossingRequests: new Map(),
-  crossingArrival: 0,
-});
-
-/** Why an edit was refused. The UI decides how to word it. */
-export type Refusal =
-  | "square-occupied"
-  | "needs-track"
-  | "needs-engine"
-  | "engine-blocked"
-  | "train-full"
-  | "loop-too-short"
-  | "needs-more-track"
-  | "too-big-for-size"
-  | "no-change";
-
-export const MAX_CARS = 24;
 
 export const COLS = 17;
 export const ROWS = 14;
@@ -125,29 +66,6 @@ export const GRID_SIZES: (GridSize & { label: string })[] = [
   { cols: 7, rows: 5, label: "Biggest" },
 ];
 
-export function gridSize(size: { cols?: unknown; rows?: unknown }) {
-  return (
-    GRID_SIZES.find(({ cols, rows }) => cols === size.cols && rows === size.rows) ?? GRID_SIZES[0]
-  );
-}
-
-export function expandStandardYard<T extends { cols?: unknown; rows?: unknown; grid?: unknown }>(
-  layout: T,
-): T {
-  const previousRows = 12;
-  const legacySize =
-    (layout.cols === COLS && layout.rows === previousRows) ||
-    (layout.cols === undefined && layout.rows === undefined);
-  if (!legacySize || !Array.isArray(layout.grid) || layout.grid.length !== COLS * previousRows)
-    return layout;
-  // Appending rows keeps every track and train history index at the same coordinates.
-  return {
-    ...layout,
-    cols: COLS,
-    rows: ROWS,
-    grid: [...layout.grid, ...Array(COLS * (ROWS - previousRows)).fill(null)],
-  };
-}
 export const ENDS: Point[] = [
   [0.5, 0],
   [1, 0.5],
@@ -160,12 +78,8 @@ const STEPS: Point[] = [
   [0, 1],
   [-1, 0],
 ];
-const OPPOSITE: readonly Port[] = [2, 3, 0, 1];
+export const OPPOSITE: readonly Port[] = [2, 3, 0, 1];
 const QUARTER_TURN = Math.PI / 2;
-const CAR_GAP = 0.7;
-const STATION_STOP_SECONDS = 1.6;
-const CROSSING_CLEARANCE = 0.38;
-const CROSSING_STOP_DISTANCE = 0.42;
 
 /** Catalogs list entries in palette order; `inPalette` entries appear in the palette. */
 interface TrackInfo {
@@ -287,11 +201,11 @@ export function trackPaths(tile: Orientation, all = false): Port[][] {
   return selected.map((path) => path.map((port) => (port === -1 ? -1 : (port + tile.turn) % 4)));
 }
 
-function hasPort(tile: Orientation | null | undefined, port: Port) {
+export function hasPort(tile: Orientation | null | undefined, port: Port) {
   return Boolean(tile && trackPaths(tile, true).some((route) => route.includes(port)));
 }
 
-function neighbor({ cols, rows }: Board, index: number, port: Port) {
+export function neighbor({ cols, rows }: Board, index: number, port: Port) {
   if (port === -1) return -1;
   const [x, y] = cellAt(index, cols);
   const [dx, dy] = STEPS[port];
@@ -406,7 +320,7 @@ export function pointOn(path: Segment, fraction: number): [x: number, y: number,
   ];
 }
 
-function nextSegments(board: Board, path: Segment) {
+export function nextSegments(board: Board, path: SegmentRef): Segment[] {
   const index = neighbor(board, path.index, path.to);
   const tile = board.grid[index];
   if (!tile) return [];
@@ -424,12 +338,8 @@ function nextSegments(board: Board, path: Segment) {
     );
 }
 
-function onward(board: Board, path: Segment) {
+export function onward(board: Board, path: SegmentRef): Segment | null {
   return nextSegments(board, path)[0] ?? null;
-}
-
-function head(train: Train) {
-  return train.history[train.history.length - 1];
 }
 
 export function position(path: Segment, distance: number, cols: number): Position {
@@ -438,44 +348,13 @@ export function position(path: Segment, distance: number, cols: number): Positio
   return { x: column + x, y: row + y, angle, index: path.index };
 }
 
-export function carPositions(train: Train, cols: number) {
-  const positions: CarPosition[] = [];
-  let pathIndex = train.history.length - 1;
-  let distance = train.progress;
-  for (const car of train.cars) {
-    while (distance < 0 && pathIndex > 0) {
-      pathIndex -= 1;
-      distance += train.history[pathIndex].length;
-    }
-    if (distance < 0) break;
-    positions.push({ ...position(train.history[pathIndex], distance, cols), ...car });
-    distance -= CAR_GAP;
-  }
-  return positions;
-}
-
-function addTailHistory(board: Board, train: Train) {
-  let available =
-    train.progress + train.history.slice(0, -1).reduce((total, path) => total + path.length, 0);
-  const seen = new Set(train.history.map(pathKey));
-  while (available < (train.cars.length - 1) * CAR_GAP) {
-    const first = train.history[0];
-    const previous = onward(board, segment(first.index, first.to, first.from));
-    if (!previous) break;
-    const path = segment(previous.index, previous.to, previous.from);
-    const key = pathKey(path);
-    if (seen.has(key)) break;
-    seen.add(key);
-    train.history.unshift(path);
-    available += path.length;
-  }
-}
-
-function pathKey(path: Segment) {
+/** Identifies a route across a square, so segments compare by value rather than identity. */
+export function pathKey(path: SegmentRef) {
   return path.index + ":" + path.from + ":" + path.to;
 }
 
-function routesAt(tile: Tile, x: number, y: number) {
+/** The routes on a tile nearest a point within its square, preferred route first. */
+export function routesAt(tile: Tile, x: number, y: number) {
   const routes = trackPaths(tile, true);
   if (isSwitch(tile) && tile.branch) routes.reverse();
   if (tile.type !== "cross") return routes;
@@ -483,317 +362,28 @@ function routesAt(tile: Tile, x: number, y: number) {
   return routes.filter((route) => route.includes(port));
 }
 
-export function startTrain(
-  board: Board,
-  index: number,
-  car: Car,
-  localX = 0.5,
-  localY = 0.5,
-  reverse = false,
-): Train | null {
+/** Whether `from`→`to` (in either direction) is a route on the tile at `index`. */
+export function isRoute(board: Board, { index, from, to }: SegmentRef) {
+  if (!Number.isInteger(index) || index < 0 || index >= board.cols * board.rows) return false;
   const tile = board.grid[index];
-  if (!tile) return null;
-  const routes = routesAt(tile, localX, localY);
-  const paths = routes.map(([from, to]) => segment(index, from, to));
-  const reversed = routes.map(([from, to]) => segment(index, to, from));
-  const candidates = reverse ? [...reversed, ...paths] : [...paths, ...reversed];
-  const path = candidates.find((candidate) => onward(board, candidate)) ?? paths[0];
-  return { id: nextTrainId(), cars: [car], history: [path], progress: path.length / 2 };
+  return Boolean(
+    tile &&
+    from !== to &&
+    trackPaths(tile, true).some(([a, b]) => (a === from && b === to) || (a === to && b === from)),
+  );
 }
 
-export function nearestTrain(
-  board: Board,
-  trains: Train[],
-  index: number,
-  localX = 0.5,
-  localY = 0.5,
-) {
-  const tile = board.grid[index];
-  if (!tile || !trains.length) return null;
-  const queues = routesAt(tile, localX, localY).flatMap(([a, b]) => [
-    segment(index, a, b),
-    segment(index, b, a),
-  ]);
-  const visited = new Set<string>();
-  const anchors = trains.map((train) => {
-    const path = head(train);
-    return { train, index: path.index, from: path.from, to: path.to };
-  });
-  for (const path of queues) {
-    const key = pathKey(path);
-    if (visited.has(key)) continue;
-    visited.add(key);
-    const match = anchors.find(
-      (anchor) =>
-        path.index === anchor.index &&
-        ((path.from === anchor.from && path.to === anchor.to) ||
-          (path.from === anchor.to && path.to === anchor.from)),
-    );
-    if (match) return match.train;
-    queues.push(...nextSegments(board, path));
-  }
-  return null;
-}
-
-export function couple(
-  board: Board,
-  train: Train,
-  car: Car,
-  insertAt = train.cars.length,
-): Refusal | null {
-  if (train.cars.length >= MAX_CARS) return "train-full";
-  let path: Segment | null = head(train);
-  const visited = new Map<string, number>();
-  let distance = 0;
-  while (path) {
-    const key = pathKey(path);
-    if (visited.has(key)) {
-      const circuit = distance - visited.get(key)!;
-      if (circuit < (train.cars.length + 1) * CAR_GAP) return "loop-too-short";
-      break;
-    }
-    visited.set(key, distance);
-    distance += path.length;
-    path = onward(board, path);
-  }
-  const withCar = { ...train, cars: [...train.cars], history: [...train.history] };
-  withCar.cars.splice(insertAt, 0, car);
-  addTailHistory(board, withCar);
-  if (!path) {
-    const behind =
-      withCar.progress +
-      withCar.history.slice(0, -1).reduce((total, segment) => total + segment.length, 0);
-    const ahead = Math.max(0, distance - withCar.progress - 0.29);
-    if (behind + ahead < train.cars.length * CAR_GAP) return "needs-more-track";
-  }
-  train.cars = withCar.cars;
-  train.history = withCar.history;
-  return null;
-}
-
-function crossingTraffic(board: Board, trains: Train[], sim: SimState, distance: number) {
-  const { grid } = board;
-  const owners = new Map<number, Train>();
-  const approaches = new Map<Train, CrossingApproach>();
-  const encroaching = new Map<Train, Segment>();
-  for (const train of trains) {
-    const path = head(train);
-    const nextIndex = neighbor(board, path.index, path.to);
-    const next = grid[nextIndex]?.type === "cross" ? onward(board, path) : null;
-    const headIndex = train.history.length - 1;
-    let behind = 0;
-    const tail = (train.cars.length - 1) * CAR_GAP + CROSSING_CLEARANCE;
-    // Reserve the entire length of the train, including the gaps between cars.
-    for (let i = headIndex; i >= 0 && behind <= tail; i -= 1) {
-      const segment = train.history[i];
-      if (grid[segment.index]?.type === "cross" && !owners.has(segment.index))
-        owners.set(segment.index, train);
-      behind += i === headIndex ? train.progress : segment.length;
-    }
-    if (!next) {
-      sim.crossingRequests.delete(train.id);
-      continue;
-    }
-    const untilStop = path.length - train.progress - CROSSING_STOP_DISTANCE;
-    if (untilStop > distance) {
-      sim.crossingRequests.delete(train.id);
-      continue;
-    }
-    approaches.set(train, { path, crossing: next.index, untilStop });
-    if (path.length - train.progress < CROSSING_CLEARANCE) encroaching.set(train, next);
-  }
-  for (const [train, path] of encroaching) {
-    if (!owners.has(path.index)) owners.set(path.index, train);
-  }
-
-  // For arrivals within the same frame, the closer train reached the stop line first.
-  const arrivals = [...approaches].sort(([, a], [, b]) => a.untilStop - b.untilStop);
-  for (const [train, approach] of arrivals) {
-    const previous = sim.crossingRequests.get(train.id);
-    const path = pathKey(approach.path);
-    if (previous?.path === path && previous.crossing === approach.crossing) {
-      approach.order = previous.order;
-    } else {
-      approach.order = sim.crossingArrival++;
-      sim.crossingRequests.set(train.id, {
-        path,
-        crossing: approach.crossing,
-        order: approach.order,
-      });
-    }
-  }
-  arrivals.sort(([, a], [, b]) => a.order! - b.order!);
-  for (const [train, { crossing }] of arrivals) {
-    if (!owners.has(crossing)) owners.set(crossing, train);
-  }
-  return { owners, approaches, encroaching };
-}
-
-export function advance(
-  board: Board,
-  trains: Train[],
-  sim: SimState,
-  distance: number,
-  seconds = distance / 1.6,
-  onStation: () => void = () => {},
-  onMove?: (train: Train) => void,
-) {
-  const { grid, cols } = board;
-  const movingEngines = new Set<StockType>();
-  const occupied = trains.map((train) => carPositions(train, cols));
-  const ids = new Set(trains.map((train) => train.id));
-  for (const id of sim.stationStops.keys()) if (!ids.has(id)) sim.stationStops.delete(id);
-  for (const id of sim.crossingRequests.keys()) if (!ids.has(id)) sim.crossingRequests.delete(id);
-  const traffic = trains.length > 1 ? crossingTraffic(board, trains, sim, distance) : null;
-  trains.forEach((train, index) => {
-    let path = head(train);
-    const crossing = grid[path.index]?.type === "cross" ? path : null;
-    const owner = crossing && traffic?.owners.get(crossing.index);
-    const ownerPath = owner && (traffic?.encroaching.get(owner) ?? head(owner));
-    if (
-      owner &&
-      ownerPath &&
-      owner !== train &&
-      ownerPath.index === crossing.index &&
-      ownerPath.from % 2 !== crossing.from % 2
-    )
-      return;
-    const key = pathKey(path);
-    let stop = sim.stationStops.get(train.id);
-    if (stop && stop.path !== key) {
-      // The train has left the platform, so it can stop there again next time round.
-      sim.stationStops.delete(train.id);
-      stop = undefined;
-    }
-    if (stop && stop.remaining > 0) {
-      stop.remaining -= seconds;
-      return;
-    }
-    let progress = train.progress + distance;
-    const approach = traffic?.approaches.get(train);
-    if (approach && traffic?.owners.get(approach.crossing) !== train) {
-      progress = train.progress + Math.max(0, approach.untilStop);
-    }
-    let next: Segment | null = null;
-    const midpoint = path.length / 2;
-    const arriving =
-      grid[path.index]?.type === "station" &&
-      !stop &&
-      train.progress <= midpoint &&
-      progress >= midpoint &&
-      distance > 0;
-    if (arriving) {
-      progress = midpoint;
-    } else if (progress >= path.length) {
-      next = onward(board, path);
-      progress = next
-        ? progress - path.length
-        : Math.max(train.progress, path.length - Math.min(0.29, path.length / 2));
-      if (next) path = next;
-    } else if (path.length - progress < 0.29 && !onward(board, path)) {
-      progress = Math.max(train.progress, path.length - Math.min(0.29, path.length / 2));
-    }
-    const candidate = position(path, progress, cols);
-    const blocked = occupied.some((cars, other) => {
-      if (other === index) return false;
-      // Let the owner clear a crossing where an older save left two trains nose to nose.
-      const otherTrain = trains[other];
-      const otherPath = traffic?.encroaching.get(otherTrain) ?? head(otherTrain);
-      const clearingJam =
-        owner === train &&
-        crossing !== null &&
-        otherPath.index === crossing.index &&
-        otherPath.from % 2 !== crossing.from % 2;
-      return (
-        !clearingJam &&
-        cars.some((car) => Math.hypot(candidate.x - car.x, candidate.y - car.y) < 0.58)
-      );
-    });
-    if (blocked) return;
-    const moved = next || progress > train.progress;
-    if (moved) {
-      for (const car of train.cars) if (isEngine(car.type)) movingEngines.add(car.type);
-    }
-    if (next) train.history.push(next);
-    train.progress = progress;
-    if (arriving) {
-      sim.stationStops.set(train.id, { path: pathKey(path), remaining: STATION_STOP_SECONDS });
-      onStation();
-    }
-    let remaining = (train.cars.length - 1) * CAR_GAP - progress;
-    let keepFrom = train.history.length - 1;
-    while (keepFrom > 0 && remaining > 0) {
-      keepFrom -= 1;
-      remaining -= train.history[keepFrom].length;
-    }
-    // A few previous pieces let a new car appear immediately when coupled.
-    train.history.splice(0, Math.max(0, keepFrom - 2));
-    occupied[index] = carPositions(train, cols);
-    if (moved) onMove?.(train);
-  });
-  return movingEngines;
+/** Whether `next` continues from `path`: it is on the square beyond `path.to` and enters from the opposite side. */
+export function leadsInto(board: Board, path: SegmentRef, next: SegmentRef) {
+  return (
+    path.to !== -1 &&
+    next.index === neighbor(board, path.index, path.to) &&
+    next.from === OPPOSITE[path.to]
+  );
 }
 
 export function blankBoard({ cols, rows }: GridSize = GRID_SIZES[0]): Board {
   return { grid: Array(cols * rows).fill(null), cols, rows };
-}
-
-export function blankLayout(
-  size: GridSize = GRID_SIZES[0],
-  background: Background = "plain",
-): Layout {
-  return { name: "New Layout", board: blankBoard(size), background, trains: [] };
-}
-
-function firstCarSegment(train: Train) {
-  let index = train.history.length - 1;
-  let distance = train.progress - (train.cars.length - 1) * CAR_GAP;
-  while (index > 0 && distance < 0) {
-    index -= 1;
-    distance += train.history[index].length;
-  }
-  return index;
-}
-
-export function resizeLayout(layout: Layout, { cols, rows }: GridSize): Layout | null {
-  const old = layout.board;
-  const used = old.grid.flatMap((tile, index) => (tile ? [cellAt(index, old.cols)] : []));
-  const requiredHistory = layout.trains.map(firstCarSegment);
-  layout.trains.forEach((train, i) => {
-    for (const path of train.history.slice(requiredHistory[i]))
-      used.push(cellAt(path.index, old.cols));
-  });
-  const shift = [cols, rows].map((size, axis) => {
-    if (!used.length) return 0;
-    let low = -Infinity;
-    let high = Infinity;
-    for (const cell of used) {
-      low = Math.max(low, -cell[axis]);
-      high = Math.min(high, size - 1 - cell[axis]);
-    }
-    if (low > high) return null;
-    const centered = Math.floor((size - (axis === 0 ? old.cols : old.rows)) / 2);
-    return Math.min(high, Math.max(low, centered));
-  });
-  const [dx, dy] = shift;
-  if (dx == null || dy == null) return null;
-  const move = (index: number) => {
-    const [x, y] = cellAt(index, old.cols);
-    if (x + dx < 0 || x + dx >= cols || y + dy < 0 || y + dy >= rows) return -1;
-    return indexAt(x + dx, y + dy, cols);
-  };
-  const grid: Grid = Array(cols * rows).fill(null);
-  old.grid.forEach((tile, index) => {
-    if (tile) grid[move(index)] = tile;
-  });
-  const trains = layout.trains.map((train) => {
-    const history = train.history.map((path) => ({ ...path, index: move(path.index) }));
-    return {
-      ...train,
-      history: history.slice(history.findLastIndex((path) => path.index === -1) + 1),
-    };
-  });
-  return { ...layout, board: { grid, cols, rows }, trains };
 }
 
 export const TUNNEL_HALF_LENGTH = 0.4;

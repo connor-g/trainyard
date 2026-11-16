@@ -1,5 +1,18 @@
-import { blankLayout, couple, indexAt, startTrain, trackPaths } from "./railway.ts";
-import type { Background, ColorName, Layout, Point, StockType, TrackType } from "./railway.ts";
+import { GRID_SIZES, blankBoard, indexAt, trackPaths } from "./railway.ts";
+import type {
+  Background,
+  Board,
+  ColorName,
+  GridSize,
+  Point,
+  StockType,
+  Tile,
+  TrackType,
+} from "./railway.ts";
+import { frozen } from "./model/freeze.ts";
+import { MAX_CARS, extendTail, isValidPath, placeCar, toRefs } from "./model/train.ts";
+import { nextTrainId } from "./model/types.ts";
+import type { TrainSpec, Yard } from "./model/types.ts";
 
 type Feature = [x: number, y: number, type: TrackType];
 type CarSpec = [type: StockType, color: ColorName];
@@ -10,8 +23,15 @@ function stepPort(x: number, y: number, otherX: number, otherY: number) {
   return otherX > x ? 1 : 3;
 }
 
-function layLoop(yard: Layout, corners: Point[]) {
-  const { grid, cols } = yard.board;
+/** A board being built; presets fill it in before it is frozen into a yard. */
+interface Draft {
+  name: string;
+  grid: (Tile | null)[];
+  cols: number;
+}
+
+function layLoop(yard: Draft, corners: Point[]) {
+  const { grid, cols } = yard;
   const cells: Point[] = [];
   corners.forEach(([x, y], i) => {
     const [nextX, nextY] = corners[(i + 1) % corners.length];
@@ -44,15 +64,34 @@ function layLoop(yard: Layout, corners: Point[]) {
   });
 }
 
-function addTrain(yard: Layout, [x, y, cars, reverse = false]: PresetTrain) {
-  const { board } = yard;
-  const [[type, color], ...coupled] = cars;
-  const train = startTrain(board, indexAt(x, y, board.cols), { type, color }, 0.5, 0.5, reverse)!;
-  for (const [type, color] of coupled) {
-    const error = couple(board, train, { type, color });
-    if (error) throw new Error(yard.name + ": " + error);
-  }
-  yard.trains.push(train);
+/** A train standing on the square at (x, y), with its cars coupled behind the engine. */
+function presetTrain(board: Board, name: string, [x, y, cars, reverse = false]: PresetTrain) {
+  if (cars.length > MAX_CARS) throw new Error(name + ": too many cars");
+  const placed = placeCar(board, indexAt(x, y, board.cols), 0.5, 0.5, reverse);
+  if (!placed) throw new Error(name + ": no track for a train");
+  const history = extendTail(board, placed.history, placed.progress, cars.length);
+  if (!isValidPath(board, history, placed.progress, cars.length))
+    throw new Error(name + ": not enough track behind a train");
+  return {
+    id: nextTrainId(),
+    cars: cars.map(([type, color]) => ({ type, color })),
+    start: { path: toRefs(history), progress: placed.progress },
+  } satisfies TrainSpec;
+}
+
+function finish(draft: Draft, background: Background, trains: PresetTrain[]): Yard {
+  const board: Board = { grid: draft.grid, cols: draft.cols, rows: draft.grid.length / draft.cols };
+  return frozen({
+    name: draft.name,
+    board,
+    background,
+    trains: trains.map((train) => presetTrain(board, draft.name, train)),
+  });
+}
+
+function draft(name: string): Draft {
+  const { grid, cols } = blankBoard();
+  return { name, grid: grid.slice(), cols };
 }
 
 function buildYard(
@@ -61,21 +100,21 @@ function buildYard(
   corners: Point[],
   features: Feature[],
   trains: PresetTrain[],
-): Layout {
-  const yard: Layout = { ...blankLayout(), name, background };
+): Yard {
+  const yard = draft(name);
   layLoop(yard, corners);
   for (const [x, y, type] of features) {
-    const tile = yard.board.grid[indexAt(x, y, yard.board.cols)];
+    const index = indexAt(x, y, yard.cols);
+    const tile = yard.grid[index];
     if (tile?.type !== "straight") throw new Error("Missing straight track in " + name);
-    tile.type = type;
+    yard.grid[index] = { ...tile, type };
   }
-  for (const train of trains) addTrain(yard, train);
-  return yard;
+  return finish(yard, background, trains);
 }
 
-export function sampleLayout(): Layout {
-  const yard: Layout = { ...blankLayout(), name: "Meadow Loop", background: "meadow" };
-  const { grid, cols } = yard.board;
+export function sampleLayout(): Yard {
+  const yard = draft("Meadow Loop");
+  const { grid, cols } = yard;
   const put = (x: number, y: number, type: TrackType, turn = 0) => {
     grid[indexAt(x, y, cols)] = { type, turn, branch: false };
   };
@@ -99,20 +138,21 @@ export function sampleLayout(): Layout {
   put(6, 4, "curve", 3);
   put(11, 4, "curve", 2);
   for (let x = 7; x < 11; x += 1) put(x, 4, "straight");
-  addTrain(yard, [
-    6,
-    9,
+  return finish(yard, "meadow", [
     [
-      ["steam", "brick"],
-      ["box", "amber"],
-      ["caboose", "pine"],
+      6,
+      9,
+      [
+        ["steam", "brick"],
+        ["box", "amber"],
+        ["caboose", "pine"],
+      ],
+      true,
     ],
-    true,
   ]);
-  return yard;
 }
 
-export function scenicPresets(): Layout[] {
+export function scenicPresets(): Yard[] {
   return [
     buildYard(
       "Harbor Line",
@@ -229,4 +269,8 @@ export function scenicPresets(): Layout[] {
       ],
     ),
   ];
+}
+
+export function blankYard(size: GridSize = GRID_SIZES[0], background: Background = "plain"): Yard {
+  return frozen({ name: "New Layout", board: blankBoard(size), background, trains: [] });
 }

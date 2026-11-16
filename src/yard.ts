@@ -2,8 +2,6 @@ import {
   COLS,
   ROWS,
   GRID_SIZES,
-  MAX_CARS,
-  resizeLayout,
   BACKGROUNDS,
   TRACK,
   STOCK,
@@ -12,40 +10,28 @@ import {
   STOCK_PALETTE,
   indexAt,
   cellAt,
-  fitTrack,
-  rotateTrack,
   isEngine,
-  isSwitch,
-  switchBranch,
-  startTrain,
-  nearestTrain,
-  couple,
-  advance,
-  carPositions,
-  blankLayout,
-  initialSimState,
-  nextTrainId,
-  underTunnelRoof,
 } from "./railway.ts";
 import type {
   Background,
   Board,
   Car,
-  CarPosition,
   ColorName,
   GridSize,
-  Layout,
   Point,
-  Refusal,
   StockType,
   Tile,
-  TrackEdit,
   TrackType,
-  Train,
-  TrainId,
 } from "./railway.ts";
-import { sampleLayout, scenicPresets } from "./presets.ts";
-import { fromLegacy, toLegacy } from "./legacy.ts";
+import { applyEdit } from "./model/edits.ts";
+import type { Edit, EditResult, Refusal } from "./model/edits.ts";
+import { initialMotion } from "./model/motion.ts";
+import { carAt, carPositions, underTunnelRoof, visibleTile } from "./model/queries.ts";
+import { MAX_CARS, carPositionsOn, placeCar } from "./model/train.ts";
+import type { BoardPoint, TrainId, Yard } from "./model/types.ts";
+import { createStore } from "./store.ts";
+import { blankYard, sampleLayout, scenicPresets } from "./presets.ts";
+import { fromSaved, toSaved } from "./saves.ts";
 import {
   drawGround,
   drawTile,
@@ -87,7 +73,7 @@ interface CarPiece {
 interface BoardCar extends Car {
   kind: "board";
   index: number;
-  train: Train;
+  train: TrainId;
   carIndex: number;
   tile?: undefined;
 }
@@ -117,7 +103,6 @@ type Drag = Item & {
   ghost: HTMLDivElement | null;
   moved: boolean;
 };
-type GridEdit = [index: number, tile: Tile | null];
 type Puff = SteamPuff & { start: number; drift: number };
 
 const symbols = {
@@ -164,17 +149,17 @@ const library = $<HTMLDialogElement>("layout-library");
 const saveName = $<HTMLInputElement>("save-name");
 const savedLayouts = $("saved-layouts");
 const libraryNote = $("library-note");
-const saveKey = "rail-yard-v1";
-const libraryKey = "rail-yard-saved-layouts-v1";
+// Version 1 saves (with current positions) are left untouched under their own keys for migration.
+const saveKey = "rail-yard-v2";
+const libraryKey = "rail-yard-saved-layouts-v2";
 const soundKey = "rail-yard-muted";
 const sound = new TrainSound();
 try {
   sound.enabled = localStorage.getItem(soundKey) !== "yes";
 } catch {}
 const soundButton = $("sound");
-const undoStack: Layout[] = [];
-let layout = load();
-let { cols, rows } = layout.board;
+const store = createStore(load());
+let { cols, rows } = store.yard.board;
 let paletteKind: PaletteKind = "track";
 let color: ColorName = "brick";
 let speed = 1;
@@ -182,24 +167,20 @@ let hover: Cell | null = null;
 let keyboardCell: Point = [0, 0];
 let drag: Drag | null = null;
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
-let stockFrame: CarPosition[][] = [];
 let lastFrame: number | undefined;
-let sim = initialSimState();
 let smokePuffs: Puff[] = [];
 /** When each steam engine last puffed, keyed by train and car index. */
 let lastPuff = new Map<string, number>();
 const puffLifetime = 760;
-const movingTrains = new Set<TrainId>();
-const recordMovement = (train: Train) => movingTrains.add(train.id);
+let movingTrains: ReadonlySet<TrainId> = new Set();
 let activeCrane: { trainId: TrainId; carIndex: number; start: number } | null = null;
 const carKey = (trainId: TrainId, carIndex: number) => trainId + ":" + carIndex;
 const craneSwingDuration = 950;
-const ringStation = () => sound.call("station");
 
-function load(): Layout {
+function load(): Yard {
   try {
     const raw = localStorage.getItem(saveKey);
-    const saved = raw ? fromLegacy(JSON.parse(raw)) : null;
+    const saved = raw ? fromSaved(JSON.parse(raw)) : null;
     if (saved) return saved;
   } catch {
     // A blocked or unavailable storage area still allows play for this visit.
@@ -207,17 +188,17 @@ function load(): Layout {
   return sampleLayout();
 }
 
-let libraryEntries: Layout[] = [];
+let libraryEntries: Yard[] = [];
 let libraryPage = 0;
 const yardsPerPage = 5;
 
-function readSavedYards(): Layout[] {
+function readSavedYards(): Yard[] {
   try {
     const entries: unknown = JSON.parse(localStorage.getItem(libraryKey) ?? "[]");
     if (!Array.isArray(entries)) return [];
     return entries
       .filter((entry) => typeof entry?.name === "string" && entry.name.trim())
-      .flatMap((entry) => fromLegacy(entry) ?? []);
+      .flatMap((entry) => fromSaved(entry) ?? []);
   } catch {
     return [];
   }
@@ -225,25 +206,25 @@ function readSavedYards(): Layout[] {
 
 function listYards() {
   // Saved yards replace built-in yards with the same name.
-  const yards = new Map<string, Layout>();
+  const yards = new Map<string, Yard>();
   for (const yard of [sampleLayout(), ...scenicPresets(), ...readSavedYards()]) {
     yards.set(layoutNameKey(yard.name), yard);
   }
   return [...yards.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function storeYard(yard: Layout) {
+function storeYard(yard: Yard) {
   const key = layoutNameKey(yard.name);
   const saved = readSavedYards().filter((entry) => layoutNameKey(entry.name) !== key);
   saved.push(yard);
-  localStorage.setItem(libraryKey, JSON.stringify(saved.map(toLegacy)));
+  localStorage.setItem(libraryKey, JSON.stringify(saved.map(toSaved)));
 }
 
 function layoutNameKey(name: string) {
   return name.toLowerCase();
 }
 
-function drawYardThumbnail(canvas: HTMLCanvasElement, yard: Layout) {
+function drawYardThumbnail(canvas: HTMLCanvasElement, yard: Yard) {
   const { board } = yard;
   const { cols: width, rows: height } = board;
   const scale = Math.min(canvas.width / width, canvas.height / height);
@@ -251,21 +232,24 @@ function drawYardThumbnail(canvas: HTMLCanvasElement, yard: Layout) {
   ctx.translate((canvas.width - width * scale) / 2, (canvas.height - height * scale) / 2);
   ctx.scale(scale, scale);
   drawGround(ctx, yard.background, width, height);
-  for (const [index, tile] of board.grid.entries()) {
-    if (!tile) continue;
-    const visible = isSwitch(tile) ? { ...tile, branch: switchBranch(board, index, tile) } : tile;
-    drawTile(ctx, visible, ...cellAt(index, width), board);
-  }
-  for (const train of yard.trains) {
-    for (const car of carPositions(train, width)) drawCar(ctx, car, car.x, car.y, car.angle);
+  drawTiles(ctx, board);
+  for (const cars of carPositions(yard, initialMotion(yard)).values()) {
+    for (const car of cars) drawCar(ctx, car, car.x, car.y, car.angle);
   }
   drawTunnelRoofs(ctx, board);
+}
+
+function drawTiles(ctx: CanvasRenderingContext2D, board: Board, skip = -1) {
+  for (const [index, tile] of board.grid.entries()) {
+    if (tile && index !== skip)
+      drawTile(ctx, visibleTile({ board }, index)!, ...cellAt(index, board.cols), board);
+  }
 }
 
 function showLibrary() {
   const start = libraryPage * yardsPerPage;
   const pages = Math.max(1, Math.ceil(libraryEntries.length / yardsPerPage));
-  const fresh = blankLayout(layout.board, layout.background);
+  const fresh = blankYard(store.yard.board, store.yard.background);
   const entries = [fresh, ...libraryEntries.slice(start, start + yardsPerPage)];
   savedLayouts.replaceChildren();
   entries.forEach((yard, index) => {
@@ -281,18 +265,11 @@ function showLibrary() {
     caption.textContent = index === 0 ? "New yard" : yard.name;
     button.append(thumbnail, caption);
     button.onclick = () => {
-      const previous = snapshot();
-      layout = structuredClone(yard);
-      for (const train of layout.trains) train.id = nextTrainId();
-      resetTrainEffects();
-      hover = null;
-      keyboardCell = [0, 0];
+      store.dispatch({ type: "replace", yard });
       if (index === 0) {
         if (!speed) setSpeed(1);
         setPalette("track");
       }
-      commit(previous);
-      resize();
       library.close();
       if (index !== 0) notify("Loaded " + yard.name + ".");
     };
@@ -314,29 +291,19 @@ $("library-next").onclick = () => {
   showLibrary();
 };
 
-function updateSaveLabel(entries: Layout[]) {
+function updateSaveLabel(entries: Yard[]) {
   const name = layoutNameKey(saveName.value.trim());
   const exists = entries.some((entry) => layoutNameKey(entry.name) === name);
   $("save-yard").textContent = exists ? "Update yard" : "Save yard";
 }
 
+/** Saves the yard as built, with every train at its start; train movement never needs saving. */
 function save() {
   try {
-    localStorage.setItem(saveKey, JSON.stringify(toLegacy(layout)));
+    localStorage.setItem(saveKey, JSON.stringify(toSaved(store.yard)));
   } catch {
     // Keep the current layout usable in memory.
   }
-}
-function snapshot() {
-  return structuredClone(layout);
-}
-function commit(previous: Layout) {
-  undoStack.push(previous);
-  if (undoStack.length > 35) undoStack.shift();
-  save();
-  updateStatus();
-  redrawRails();
-  redrawStock();
 }
 const refusalMessages: Record<Refusal, string> = {
   "square-occupied": "Wait for the train to clear this square.",
@@ -365,14 +332,15 @@ function notify(message: string) {
 }
 
 function updateStatus() {
-  ({ cols, rows } = layout.board);
+  const { yard } = store;
+  ({ cols, rows } = yard.board);
   for (const button of children($("grid-sizes"))) {
     button.setAttribute("aria-pressed", String(Number(button.dataset.cols) === cols));
   }
   const title = $("layout-name");
-  title.textContent = layout.name;
-  title.title = layout.name;
-  $<HTMLButtonElement>("undo").disabled = !undoStack.length;
+  title.textContent = yard.name;
+  title.title = yard.name;
+  $<HTMLButtonElement>("undo").disabled = !store.canUndo;
   updateBackgroundButtons();
 }
 
@@ -391,7 +359,7 @@ closeLibrary.innerHTML = icon("close");
 closeLibrary.onclick = () => library.close();
 
 function background() {
-  return layout.background;
+  return store.yard.background;
 }
 
 function updateBackgroundButtons() {
@@ -414,12 +382,7 @@ for (const [key, name] of Object.entries(BACKGROUNDS) as [Background, string][])
   drawGround(context, key, COLS, ROWS);
   button.append(sample, name);
   button.onclick = () => {
-    if (key !== background()) {
-      const previous = snapshot();
-      layout.background = key;
-      drawGround(groundContext, key, cols, rows);
-      commit(previous);
-    }
+    store.dispatch({ type: "setBackground", background: key });
     dialog.close("background");
   };
   $("backgrounds").append(button);
@@ -434,14 +397,8 @@ function resetGridNotice() {
   blankAtSize.hidden = true;
 }
 
-function applyGrid(next: Layout, blank = false) {
-  const previous = snapshot();
-  layout = next;
-  if (blank) resetTrainEffects();
-  hover = null;
-  keyboardCell = [0, 0];
-  commit(previous);
-  resize();
+function startBlank(size: GridSize) {
+  store.dispatch({ type: "replace", yard: blankYard(size, background()) });
   dialog.close("grid-size");
 }
 
@@ -456,8 +413,9 @@ for (const size of GRID_SIZES) {
   button.onclick = () => {
     resetGridNotice();
     if (size.cols === cols) return;
-    const next = resizeLayout(layout, size);
-    if (next) return applyGrid(next);
+    const result = store.dispatch({ type: "resize", size });
+    if (result.ok) return dialog.close("grid-size");
+    if (result.reason !== "too-big-for-size") return;
     pendingSize = size;
     gridNote.textContent = "This yard is too wide or tall for " + dimensions.textContent + ".";
     gridNote.hidden = false;
@@ -468,11 +426,11 @@ for (const size of GRID_SIZES) {
 }
 
 blankAtSize.onclick = () => {
-  if (pendingSize) applyGrid(blankLayout(pendingSize, background()), true);
+  if (pendingSize) startBlank(pendingSize);
 };
 
 $("start-blank").onclick = () => {
-  applyGrid(blankLayout(layout.board, background()), true);
+  startBlank(store.yard.board);
   setPalette("track");
 };
 
@@ -608,64 +566,52 @@ function resize() {
   redrawStock();
 }
 
-function occupiedSquares() {
-  return new Set(stockFrame.flatMap((cars) => cars.map((car) => car.index)));
-}
-
 function movesTrack(item: Item | null): item is TrackMove {
   return item?.kind === "track" || Boolean(item?.tile);
 }
 
-function trackEdits(item: TrackMove, index: number): GridEdit[] | null {
-  const occupied = occupiedSquares();
-  if (occupied.has(index)) return null;
-  const { board } = layout;
-  if (!item.tile) return fitTrack(board, index, item.type, occupied, null);
-  const source = item.index;
-  if (source === index || board.grid[source] !== item.tile || occupied.has(source)) return null;
-  const grid = board.grid.slice();
-  grid[source] = null;
-  const moved: TrackEdit[] = fitTrack({ ...board, grid }, index, item.type, occupied, item.tile);
-  return [[source, null], ...moved];
+function trackEdit(item: TrackMove, index: number): Edit {
+  return item.tile
+    ? { type: "moveTrack", from: item.index, to: index }
+    : { type: "placeTrack", at: index, track: item.type };
 }
+
+const boardPoint = (cell: Cell): BoardPoint => ({
+  index: cell.index,
+  x: cell.x - cell.column,
+  y: cell.y - cell.row,
+});
 
 function redrawRails() {
   railsContext.clearRect(0, 0, cols, rows);
   roofContext.clearRect(0, 0, cols, rows);
   const trackDrop = hover && movesTrack(drag) ? drag : null;
-  const edits = trackDrop && hover ? trackEdits(trackDrop, hover.index) : null;
-  const grid = edits ? layout.board.grid.slice() : layout.board.grid;
-  for (const [index, tile] of edits ?? []) grid[index] = tile;
-  const board: Board = { ...layout.board, grid };
-  const draw = (index: number, tile: Tile) => {
-    const visible = isSwitch(tile) ? { ...tile, branch: switchBranch(board, index, tile) } : tile;
-    drawTile(railsContext, visible, ...cellAt(index, cols), board);
-  };
-  for (const [index, tile] of grid.entries()) {
-    if (tile && index !== hover?.index) draw(index, tile);
-  }
+  // A drag previews the edit without committing it.
+  const preview: EditResult | null =
+    trackDrop && hover
+      ? applyEdit(store.yard, store.motion, trackEdit(trackDrop, hover.index))
+      : null;
+  const board = preview?.ok ? preview.yard.board : store.yard.board;
+  drawTiles(railsContext, board, hover?.index);
   drawTunnelRoofs(roofContext, board);
   if (!hover) return;
   const { column, row, index } = hover;
-  const tile = grid[index];
-  const valid = trackDrop ? Boolean(edits) || trackDrop.index === index : Boolean(tile);
+  const tile = board.grid[index];
+  const valid = trackDrop
+    ? Boolean(preview?.ok) || (preview?.ok === false && preview.reason === "no-change")
+    : Boolean(tile);
   railsContext.fillStyle = valid ? "#fff2b883" : "#c7705959";
   railsContext.fillRect(column, row, 1, 1);
   railsContext.strokeStyle = valid ? "#935e2d" : "#9b4538";
   railsContext.lineWidth = 0.05;
   railsContext.strokeRect(column + 0.025, row + 0.025, 0.95, 0.95);
-  if (tile) draw(index, tile);
+  if (tile) drawTile(railsContext, visibleTile({ board }, index)!, column, row, board);
   if (valid && drag?.kind === "cars") {
-    const preview = startTrain(
-      layout.board,
-      index,
-      { type: drag.type, color: drag.color },
-      hover.x - column,
-      hover.y - row,
-    )!;
-    const [car] = carPositions(preview, cols);
+    const placed = placeCar(board, index, hover.x - column, hover.y - row)!;
+    const car: Car = { type: drag.type, color: drag.color };
+    const [position] = carPositionsOn(placed.history, placed.progress, [car], cols);
     railsContext.globalAlpha = 0.73;
-    drawCar(railsContext, car, car.x, car.y, car.angle);
+    drawCar(railsContext, position, position.x, position.y, position.angle);
     railsContext.globalAlpha = 1;
   }
 }
@@ -677,7 +623,6 @@ function drawTunnelRoofs(ctx: CanvasRenderingContext2D, board: Board) {
 
 /** Clears steam and crane swings; only a newly loaded or blank yard does this. */
 function resetTrainEffects() {
-  sim = initialSimState();
   smokePuffs = [];
   lastPuff = new Map();
   activeCrane = null;
@@ -685,10 +630,10 @@ function resetTrainEffects() {
 
 function redrawStock(now = performance.now(), emitSmoke = false) {
   stockContext.clearRect(0, 0, cols, rows);
-  stockFrame = layout.trains.map((train) => carPositions(train, cols));
-  for (const [trainIndex, cars] of stockFrame.entries()) {
-    const train = layout.trains[trainIndex];
-    for (const [carIndex, car] of cars.entries()) {
+  const { yard } = store;
+  const positions = carPositions(yard, store.motion);
+  for (const train of yard.trains) {
+    for (const [carIndex, car] of (positions.get(train.id) ?? []).entries()) {
       const key = carKey(train.id, carIndex);
       const swing =
         activeCrane && carKey(activeCrane.trainId, activeCrane.carIndex) === key
@@ -703,7 +648,7 @@ function redrawStock(now = performance.now(), emitSmoke = false) {
         now - (lastPuff.get(key) ?? -Infinity) >= 260 / Math.sqrt(speed)
       ) {
         const puff = steamPuff(car);
-        if (!underTunnelRoof(layout.board, puff.x, puff.y)) {
+        if (!underTunnelRoof(yard.board, puff.x, puff.y)) {
           lastPuff.set(key, now);
           smokePuffs.push({ ...puff, start: now, drift: (Math.random() - 0.35) * 0.13 });
         }
@@ -718,22 +663,15 @@ function redrawStock(now = performance.now(), emitSmoke = false) {
 function tick(now: number) {
   const seconds = lastFrame === undefined ? 0 : Math.min((now - lastFrame) / 1000, 0.05);
   lastFrame = now;
-  const moving = speed && layout.trains.length && !drag?.moved;
-  movingTrains.clear();
+  // Trains stay paused while something is being dragged.
+  const moving = speed && store.yard.trains.length && !drag?.moved;
   if (moving) {
-    sound.update(
-      advance(
-        layout.board,
-        layout.trains,
-        sim,
-        seconds * speed * 1.6,
-        seconds,
-        ringStation,
-        recordMovement,
-      ),
-      speed,
-    );
+    const events = store.tick(seconds, speed);
+    movingTrains = events.movingTrains;
+    sound.update(events.movingEngines, speed);
+    for (let i = 0; i < events.stationArrivals; i += 1) sound.call("station");
   } else {
+    movingTrains = new Set();
     sound.stopRolling();
   }
   if (moving || activeCrane || smokePuffs.length) redrawStock(now, Boolean(moving));
@@ -752,121 +690,52 @@ function locate(event: PointerEvent): Cell | null {
 }
 
 function hitCar(cell: Cell, bySquare = false) {
-  if (underTunnelRoof(layout.board, cell.x, cell.y)) return null;
-  let result: { trainIndex: number; carIndex: number } | null = null;
-  let distance = 0.42;
-  for (const [trainIndex, cars] of stockFrame.entries()) {
-    for (const [carIndex, car] of cars.entries()) {
-      const next = Math.hypot(cell.x - car.x, cell.y - car.y);
-      if (next <= distance || (bySquare && car.index === cell.index && !result)) {
-        distance = next;
-        result = { trainIndex, carIndex };
-      }
-    }
-  }
-  return result;
+  return carAt(store.yard, store.motion, boardPoint(cell), bySquare);
+}
+
+function dispatch(edit: Edit) {
+  const result = store.dispatch(edit);
+  if (!result.ok) refuse(result.reason);
 }
 
 function dropPiece(cell: Cell, item: TrackMove | CarPiece) {
-  const { index } = cell;
-  const tile = layout.board.grid[index];
   if (movesTrack(item)) {
-    if (item.tile && index === item.index) return;
-    const edits = trackEdits(item, index);
-    if (!edits) return refuse("square-occupied");
-    if (
-      !item.tile &&
-      edits.length === 1 &&
-      tile?.type === item.type &&
-      tile.turn === edits[0][1]?.turn
-    )
-      return;
-    const previous = snapshot();
-    for (const [square, track] of edits) layout.board.grid[square] = track;
-    return commit(previous);
+    if (item.tile && cell.index === item.index) return;
+    return dispatch(trackEdit(item, cell.index));
   }
-  if (!tile) return refuse("needs-track");
-  const car: Car = { type: item.type, color: item.color };
-  const hit = hitCar(cell, isEngine(item.type));
-  const previous = snapshot();
-  if (isEngine(item.type) && !hit) {
-    const train = startTrain(layout.board, index, car, cell.x - cell.column, cell.y - cell.row)!;
-    const [engine] = carPositions(train, cols);
-    if (
-      stockFrame.some((cars) =>
-        cars.some((other) => Math.hypot(other.x - engine.x, other.y - engine.y) < 0.66),
-      )
-    ) {
-      return refuse("engine-blocked");
-    }
-    layout.trains.push(train);
-  } else {
-    const train = hit
-      ? layout.trains[hit.trainIndex]
-      : nearestTrain(layout.board, layout.trains, index, cell.x - cell.column, cell.y - cell.row);
-    if (!train) return refuse("needs-engine");
-    const tenderPosition =
-      item.type === "tender" && hit && train.cars[hit.carIndex]?.type === "steam"
-        ? hit.carIndex + 1
-        : undefined;
-    const refusal = couple(layout.board, train, car, tenderPosition);
-    if (refusal) return refuse(refusal);
-  }
-  commit(previous);
-}
-
-function turnPiece(index: number) {
-  const tile = layout.board.grid[index];
-  if (!tile) return;
-  const rotated = rotateTrack(layout.board, index);
-  if (!rotated) return;
-  if (rotated.turn !== tile.turn && occupiedSquares().has(index)) return refuse("square-occupied");
-  const previous = snapshot();
-  layout.board.grid[index] = rotated;
-  commit(previous);
+  dispatch({ type: "addCar", car: { type: item.type, color: item.color }, at: boardPoint(cell) });
 }
 
 function removePiece(item: BoardItem) {
-  const { index } = item;
-  if (item.train) {
-    const { train, carIndex } = item;
-    const trainIndex = layout.trains.indexOf(train);
-    if (trainIndex === -1 || !train.cars[carIndex]) return;
-    const previous = snapshot();
-    train.cars.splice(carIndex, 1);
-    if (!train.cars.some((car) => isEngine(car.type))) layout.trains.splice(trainIndex, 1);
-    return commit(previous);
+  if (item.train !== undefined) {
+    return dispatch({ type: "removeCar", car: { trainId: item.train, carIndex: item.carIndex } });
   }
-  if (!layout.board.grid[index]) return;
-  if (occupiedSquares().has(index)) return refuse("square-occupied");
-  const previous = snapshot();
-  layout.board.grid[index] = null;
-  commit(previous);
+  dispatch({ type: "removeTrack", at: item.index });
 }
 
 function boardItem(cell: Cell): BoardItem {
   const hit = hitCar(cell, true);
-  if (hit) {
-    const train = layout.trains[hit.trainIndex];
+  const train = hit && store.yard.trains.find((train) => train.id === hit.trainId);
+  if (hit && train) {
     return {
       kind: "board",
       index: cell.index,
-      train,
+      train: train.id,
       carIndex: hit.carIndex,
       ...train.cars[hit.carIndex],
     };
   }
-  const tile = layout.board.grid[cell.index];
+  const tile = store.yard.board.grid[cell.index];
   return tile
     ? { kind: "board", index: cell.index, tile, type: tile.type }
     : { kind: "board", index: cell.index, tile: null };
 }
 
 function tapBoard(cell: Cell, item: BoardItem = boardItem(cell)) {
-  if (item.train && isEngine(item.type)) sound.call(item.type);
-  else if (item.type === "crane" && item.train.cars[item.carIndex]?.type === "crane") {
-    activeCrane = { trainId: item.train.id, carIndex: item.carIndex, start: performance.now() };
-  } else turnPiece(cell.index);
+  if (item.train !== undefined && isEngine(item.type)) sound.call(item.type);
+  else if (item.train !== undefined && item.type === "crane") {
+    activeCrane = { trainId: item.train, carIndex: item.carIndex, start: performance.now() };
+  } else if (store.yard.board.grid[cell.index]) dispatch({ type: "turn", at: cell.index });
 }
 
 function beginDrag(event: PointerEvent, item: Item) {
@@ -901,7 +770,7 @@ function moveDrag(event: PointerEvent) {
   if (!ghost) {
     ghost = drag.ghost = document.createElement("div");
     ghost.className = "drag-ghost";
-    const kind = drag.kind === "board" ? (drag.train ? "cars" : "track") : drag.kind;
+    const kind = drag.kind === "board" ? (drag.train !== undefined ? "cars" : "track") : drag.kind;
     ghost.append(preview(drag.type, kind, drag.color, drag.tile));
     document.body.append(ghost);
     removeZone.classList.toggle("available", drag.kind === "board");
@@ -976,15 +845,7 @@ rails.addEventListener("blur", () => {
 
 $("track-tab").onclick = () => setPalette("track");
 $("cars-tab").onclick = () => setPalette("cars");
-$("undo").onclick = () => {
-  if (!undoStack.length) return;
-  layout = undoStack.pop()!;
-  hover = null;
-  keyboardCell = [0, 0];
-  save();
-  updateStatus();
-  resize();
-};
+$("undo").onclick = () => store.undo();
 $("layouts").onclick = () => {
   resetGridNotice();
   dialog.returnValue = "cancel";
@@ -992,7 +853,7 @@ $("layouts").onclick = () => {
 };
 $("open-library").onclick = () => {
   dialog.close("library");
-  saveName.value = layout.name;
+  saveName.value = store.yard.name;
   libraryEntries = listYards();
   libraryPage = 0;
   libraryNote.textContent = "";
@@ -1008,14 +869,12 @@ $("save-layout").onsubmit = (event) => {
     return;
   }
   try {
-    storeYard({ ...snapshot(), name });
+    storeYard({ ...store.yard, name });
   } catch {
     libraryNote.textContent = "Could not save this yard. Try again.";
     return;
   }
-  layout.name = name;
-  save();
-  updateStatus();
+  store.dispatch({ type: "rename", name });
   library.close();
   notify("Saved " + name + ".");
 };
@@ -1023,10 +882,7 @@ const speedButtons = document.querySelectorAll<HTMLButtonElement>("[data-speed]"
 document.querySelector('[data-speed="0"]')!.innerHTML = icon("pause");
 function setSpeed(nextSpeed: number) {
   speed = nextSpeed;
-  if (!speed) {
-    sound.stopRolling();
-    save();
-  }
+  if (!speed) sound.stopRolling();
   for (const button of speedButtons)
     button.setAttribute("aria-pressed", String(Number(button.dataset.speed) === speed));
 }
@@ -1049,12 +905,28 @@ for (const activation of ["pointerup", "click", "keydown"]) {
 }
 document.addEventListener("visibilitychange", () => {
   sound.setHidden(document.hidden);
-  if (document.hidden) save();
 });
 for (const gesture of ["gesturestart", "gesturechange", "gestureend", "wheel"]) {
   document.addEventListener(gesture, (event) => event.preventDefault(), { passive: false });
 }
-window.addEventListener("pagehide", save);
+
+store.subscribe(({ yard, previous, edit }) => {
+  save();
+  if (edit?.type === "replace") resetTrainEffects();
+  if (!edit || edit.type === "replace" || edit.type === "resize") {
+    hover = null;
+    keyboardCell = [0, 0];
+  }
+  updateStatus();
+  if (yard.board.cols !== previous.board.cols || yard.board.rows !== previous.board.rows) {
+    resize();
+    return;
+  }
+  if (yard.background !== previous.background)
+    drawGround(groundContext, yard.background, cols, rows);
+  if (yard.board !== previous.board) redrawRails();
+  redrawStock();
+});
 
 fillPalette();
 updateSoundButton();
