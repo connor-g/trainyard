@@ -45,4 +45,4 @@ TypeScript is set up with strict typing, erasable syntax only, and isolated modu
 
 ## License
 
-Trainyard is available under the [MIT license](LICENSE). The bundled [DM Sans](public/dm-sans-license.txt) and [DM Serif](public/dm-serif-license.txt) fonts use the SIL Open Font License 1.1.
+Trainyard is available under the [MIT license](LICENSE).

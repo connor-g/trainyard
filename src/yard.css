@@ -1,14 +1,3 @@
-@font-face {
-  font-family: DM Sans;
-  src: url(/dm-sans.woff2) format("woff2");
-  font-weight: 400 800;
-  font-display: swap;
-}
-@font-face {
-  font-family: DM Serif Text;
-  src: url(/dm-serif.woff2) format("woff2");
-  font-display: swap;
-}
 :root {
   color-scheme: light;
   --paper: #f7f4eb;
@@ -18,8 +7,10 @@
   --line: #e2dfd1;
   --green: #31583d;
   --accent: #e7a348;
-  --serif: "DM Serif Text", Georgia, serif;
-  font-family: "DM Sans", system-ui, sans-serif;
+  --serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  font-family:
+    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
   font-weight: 500;
   color: var(--ink);
   background: var(--paper);
