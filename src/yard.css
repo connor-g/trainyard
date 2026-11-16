@@ -122,53 +122,57 @@
     --text-footnote: 0.8125rem; /* 13px */
     --text-caption: 0.75rem; /* 12px */
     --text-caption2: 0.6875rem; /* 11px, the HIG minimum */
-    --leading-title1: 2rem; /* 32px */
-    --leading-title2: 1.75rem; /* 28px */
+    --leading-title1: calc(var(--spacing) * 8); /* 32px */
+    --leading-title2: calc(var(--spacing) * 7); /* 28px */
     --regular: 400;
     --semibold: 600;
 
     /*
-     * Spacing scale, for padding, margins, gaps and insets. Whole steps are 8px.
-     * The half steps (-0-5, -1-5) are for padding only; margins and gaps use whole steps.
+     * One base unit, as in Tailwind: every step is a multiple of 4px (0.25rem), and the token
+     * number is the multiple. Margins, gaps and sizes use even steps (the 8px grid); padding may
+     * also use odd steps.
      */
+    --spacing: 0.25rem;
+
+    /* Spacing scale, for padding, margins, gaps and insets */
     --space-0: 0;
-    --space-0-5: 0.25rem; /* 4px, padding only */
-    --space-1: 0.5rem; /* 8px */
-    --space-1-5: 0.75rem; /* 12px, padding only */
-    --space-2: 1rem; /* 16px */
-    --space-3: 1.5rem; /* 24px */
+    --space-1: calc(var(--spacing) * 1); /* 4px, padding only */
+    --space-2: calc(var(--spacing) * 2); /* 8px */
+    --space-3: calc(var(--spacing) * 3); /* 12px, padding only */
+    --space-4: calc(var(--spacing) * 4); /* 16px */
+    --space-6: calc(var(--spacing) * 6); /* 24px */
 
-    /* Sizing scale: --size-N is N x 8px. */
-    --size-2: 1rem; /* 16px */
-    --size-3: 1.5rem; /* 24px */
-    --size-4: 2rem; /* 32px */
-    --size-5: 2.5rem; /* 40px */
-    --size-6: 3rem; /* 48px */
-    --size-7: 3.5rem; /* 56px */
-    --size-8: 4rem; /* 64px */
-    --size-9: 4.5rem; /* 72px */
-    --size-10: 5rem; /* 80px */
-    --size-12: 6rem; /* 96px */
-    --size-17: 8.5rem; /* 136px */
+    /* Sizing scale */
+    --size-4: calc(var(--spacing) * 4); /* 16px */
+    --size-6: calc(var(--spacing) * 6); /* 24px */
+    --size-8: calc(var(--spacing) * 8); /* 32px */
+    --size-10: calc(var(--spacing) * 10); /* 40px */
+    --size-12: calc(var(--spacing) * 12); /* 48px */
+    --size-14: calc(var(--spacing) * 14); /* 56px */
+    --size-16: calc(var(--spacing) * 16); /* 64px */
+    --size-18: calc(var(--spacing) * 18); /* 72px */
+    --size-20: calc(var(--spacing) * 20); /* 80px */
+    --size-24: calc(var(--spacing) * 24); /* 96px */
+    --size-34: calc(var(--spacing) * 34); /* 136px */
 
-    /* Layout sizes, also on the 8px grid */
-    --size-sidebar: 20rem; /* 320px */
-    --size-sidebar-compact: 17rem; /* 272px */
-    --size-sidebar-min: 12.5rem; /* 200px */
-    --size-palette-min: 21rem; /* 336px */
-    --size-title-max: 27rem; /* 432px */
-    --size-dialog: 33.5rem; /* 536px */
-    --size-dialog-wide: 39rem; /* 624px */
+    /* Layout sizes */
+    --size-sidebar: calc(var(--spacing) * 80); /* 320px */
+    --size-sidebar-compact: calc(var(--spacing) * 68); /* 272px */
+    --size-sidebar-min: calc(var(--spacing) * 50); /* 200px */
+    --size-palette-min: calc(var(--spacing) * 84); /* 336px */
+    --size-title-max: calc(var(--spacing) * 108); /* 432px */
+    --size-dialog: calc(var(--spacing) * 134); /* 536px */
+    --size-dialog-wide: calc(var(--spacing) * 156); /* 624px */
 
     /* Touch targets: above the HIG 44pt minimum */
-    --tap: var(--size-6);
+    --tap: var(--size-12);
 
     /* Radii. Inner radius = outer radius - padding, so nested corners stay concentric. */
-    --radius-small: 0.25rem; /* 4px */
-    --radius-control: 0.5rem; /* 8px */
-    --radius-card: 0.5rem; /* 8px */
-    --radius-group: 0.75rem; /* 12px */
-    --radius-panel: 1rem; /* 16px */
+    --radius-small: var(--space-1); /* 4px */
+    --radius-control: var(--space-2); /* 8px */
+    --radius-card: var(--space-2); /* 8px */
+    --radius-group: var(--space-3); /* 12px */
+    --radius-panel: var(--space-4); /* 16px */
 
     /* Lines. Hairlines stay a true 1px at any root font size. */
     --hairline: 1px;
@@ -184,16 +188,20 @@
     --mix-border: 45%;
     --mix-scrim: 40%;
     --mix-material: 82%;
+    --mix-shadow: 23%;
+    --mix-shadow-deep: 28%;
 
     /* Elevation */
     --shadow-segment: 0 var(--hairline) var(--hairline-thick)
       color-mix(in oklab, var(--shade) var(--mix-faint), transparent);
-    --shadow-lifted: 0 0.3125rem 0.9375rem color-mix(in oklab, var(--shade) 23%, transparent);
-    --shadow-modal: 0 0.9375rem 4.375rem color-mix(in oklab, var(--shade) 28%, transparent);
+    --shadow-lifted: 0 var(--space-1) var(--space-4)
+      color-mix(in oklab, var(--shade) var(--mix-shadow), transparent);
+    --shadow-modal: 0 var(--space-4) calc(var(--spacing) * 18)
+      color-mix(in oklab, var(--shade) var(--mix-shadow-deep), transparent);
     --scrim: color-mix(in oklab, var(--shade) var(--mix-scrim), transparent);
 
     /* Materials: the translucent, blurred surfaces HIG uses for transient overlays */
-    --material-blur: 1.25rem; /* 20px */
+    --material-blur: calc(var(--spacing) * 5); /* 20px */
     --material-saturation: 180%;
     --material-filter: blur(var(--material-blur)) saturate(var(--material-saturation));
 
@@ -293,8 +301,8 @@
   }
 
   .icon {
-    inline-size: var(--size-3);
-    block-size: var(--size-3);
+    inline-size: var(--size-6);
+    block-size: var(--size-6);
     flex: none;
   }
 }
@@ -302,8 +310,8 @@
 /* ------------------------------------------------------------------------------------------ */
 @layer layout {
   .topbar {
-    --topbar-height: var(--size-9);
-    --topbar-inline: var(--space-3);
+    --topbar-height: var(--size-18);
+    --topbar-inline: var(--space-6);
 
     flex: none;
     block-size: calc(var(--topbar-height) + var(--safe-top));
@@ -313,18 +321,18 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: var(--space-2);
+    gap: var(--space-4);
     border-block-end: var(--hairline) solid var(--line);
     background: var(--panel);
 
     @media (width <= 560px) and (orientation: portrait) {
-      --topbar-height: var(--size-7);
-      --topbar-inline: var(--space-1);
-      gap: var(--space-1);
+      --topbar-height: var(--size-14);
+      --topbar-inline: var(--space-2);
+      gap: var(--space-2);
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      --topbar-height: var(--size-7);
+      --topbar-height: var(--size-14);
     }
   }
 
@@ -332,31 +340,31 @@
     --sidebar-fluid: 35vw; /* sidebar share of the width on short landscape screens */
     --palette-share: 52%; /* portrait: the track palette's minimum share of the height */
     --palette-weight: 0.8fr;
-    --gutter-block: var(--space-2);
-    --gutter-inline: var(--space-3);
+    --gutter-block: var(--space-4);
+    --gutter-inline: var(--space-6);
 
     display: grid;
     flex: 1;
     grid-template-columns: var(--size-sidebar) minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
-    gap: var(--space-2);
+    gap: var(--space-4);
     padding-block: var(--gutter-block) max(var(--gutter-block), var(--safe-bottom));
     padding-inline: max(var(--gutter-inline), var(--safe-left))
       max(var(--gutter-inline), var(--safe-right));
     min-block-size: 0;
 
     @media (width <= 1100px) {
-      --gutter-inline: var(--space-1-5);
+      --gutter-inline: var(--space-3);
       grid-template-columns: var(--size-sidebar-compact) minmax(0, 1fr);
-      gap: var(--space-2);
+      gap: var(--space-4);
     }
 
     @media (width <= 1100px) and (orientation: portrait) {
-      --gutter-block: var(--space-1-5);
-      --gutter-inline: var(--space-1-5);
+      --gutter-block: var(--space-3);
+      --gutter-inline: var(--space-3);
       grid-template-columns: minmax(0, 1fr);
       grid-template-rows: minmax(0, 1fr) auto;
-      gap: var(--space-1);
+      gap: var(--space-2);
 
       /* The track palette needs more room than the car palette. */
       &:has(.palette[data-kind="track"]) {
@@ -368,19 +376,19 @@
     }
 
     @media (width <= 560px) and (orientation: portrait) {
-      --gutter-block: var(--space-1);
-      --gutter-inline: var(--space-1);
-      gap: var(--space-1);
+      --gutter-block: var(--space-2);
+      --gutter-inline: var(--space-2);
+      gap: var(--space-2);
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      --gutter-block: var(--space-1);
+      --gutter-block: var(--space-2);
       grid-template-columns: clamp(
           var(--size-sidebar-min),
           var(--sidebar-fluid),
           var(--size-sidebar)
         ) minmax(0, 1fr);
-      gap: var(--space-1);
+      gap: var(--space-2);
     }
   }
 
@@ -394,56 +402,56 @@
   }
 
   .workbench {
-    padding: var(--space-1-5);
+    padding: var(--space-3);
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
+    gap: var(--space-4);
     overflow: clip;
 
     @media (width <= 1100px) and (orientation: portrait) {
       grid-row: 2;
-      gap: var(--space-1);
+      gap: var(--space-2);
     }
 
     @media (width <= 560px) and (orientation: portrait) {
-      padding: var(--space-1);
+      padding: var(--space-2);
     }
 
     @media (height <= 770px) and (orientation: landscape) {
-      gap: var(--space-1);
-      padding: var(--space-1);
+      gap: var(--space-2);
+      padding: var(--space-2);
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      padding: var(--space-1);
-      gap: var(--space-1);
+      padding: var(--space-2);
+      gap: var(--space-2);
     }
   }
 
   .yard {
     display: flex;
     flex-direction: column;
-    padding: var(--space-2);
-    gap: var(--space-2);
+    padding: var(--space-4);
+    gap: var(--space-4);
 
     @media (width <= 1100px) {
-      padding: var(--space-1-5);
+      padding: var(--space-3);
     }
 
     @media (width <= 1100px) and (orientation: portrait) {
       flex: 1;
       min-block-size: 0;
-      padding: var(--space-1-5);
-      gap: var(--space-1);
+      padding: var(--space-3);
+      gap: var(--space-2);
     }
 
     @media (width <= 560px) and (orientation: portrait) {
-      padding: var(--space-1);
+      padding: var(--space-2);
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      padding: var(--space-1);
-      gap: var(--space-1);
+      padding: var(--space-2);
+      gap: var(--space-2);
     }
   }
 }
@@ -454,7 +462,7 @@
   .brand {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-4);
     min-inline-size: 0;
 
     & h1 {
@@ -467,15 +475,15 @@
     }
 
     @media (width <= 560px) and (orientation: portrait) {
-      gap: var(--space-1);
+      gap: var(--space-2);
 
       & h1 {
         font-size: clamp(var(--text-subhead), var(--fluid-brand), var(--text-title2));
       }
 
       & img {
-        inline-size: var(--size-4);
-        block-size: var(--size-4);
+        inline-size: var(--size-8);
+        block-size: var(--size-8);
       }
     }
   }
@@ -483,14 +491,14 @@
   .top-actions {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-4);
     min-inline-size: 0;
 
     @media (width <= 560px) and (orientation: portrait) {
-      gap: var(--space-1);
+      gap: var(--space-2);
 
       & .button {
-        padding-inline: var(--space-1);
+        padding-inline: var(--space-2);
         min-inline-size: 0;
         font-size: var(--text-caption);
       }
@@ -500,11 +508,11 @@
   .layout-toolbar {
     display: flex;
     align-items: center;
-    gap: var(--space-1);
+    gap: var(--space-2);
     min-inline-size: 0;
 
     @media (width <= 560px) and (orientation: portrait) {
-      gap: var(--space-1);
+      gap: var(--space-2);
     }
   }
 
@@ -529,9 +537,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: var(--space-1);
+    gap: var(--space-2);
     min-block-size: var(--tap);
-    padding: 0 var(--space-2);
+    padding: 0 var(--space-4);
     border: var(--hairline) solid var(--line);
     border-radius: var(--radius-control);
     background: var(--panel);
@@ -544,7 +552,7 @@
     flex: none;
 
     @media (width <= 560px) and (orientation: portrait) {
-      inline-size: var(--size-5);
+      inline-size: var(--size-10);
       padding: 0;
 
       & span {
@@ -559,8 +567,8 @@
     padding: 0;
 
     & .icon {
-      inline-size: var(--size-3);
-      block-size: var(--size-3);
+      inline-size: var(--size-6);
+      block-size: var(--size-6);
     }
 
     &[aria-pressed="false"] {
@@ -575,7 +583,7 @@
     grid-auto-columns: 1fr;
     gap: 0;
     flex: none;
-    padding: var(--space-0-5);
+    padding: var(--space-1);
     border: var(--hairline) solid var(--line);
     border-radius: var(--radius-group); /* tab radius + padding, so the corners nest */
     background: var(--surface-sunken);
@@ -585,9 +593,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: var(--space-1);
-    min-block-size: var(--size-7);
-    padding: 0 var(--space-0-5);
+    gap: var(--space-2);
+    min-block-size: var(--size-14);
+    padding: 0 var(--space-1);
     border: var(--hairline) solid transparent;
     border-radius: var(--radius-control);
     background: transparent;
@@ -596,8 +604,8 @@
     white-space: nowrap;
 
     & .icon {
-      inline-size: var(--size-3);
-      block-size: var(--size-3);
+      inline-size: var(--size-6);
+      block-size: var(--size-6);
     }
 
     &[aria-pressed="true"] {
@@ -616,16 +624,16 @@
     min-block-size: 0;
     grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
     grid-auto-rows: minmax(0, 1fr);
-    gap: var(--space-1);
+    gap: var(--space-2);
 
     @media (width <= 1100px) and (orientation: portrait) {
       flex: none;
-      grid-auto-rows: clamp(var(--size-6), var(--row-fluid), var(--size-10));
-      gap: var(--space-1);
+      grid-auto-rows: clamp(var(--size-12), var(--row-fluid), var(--size-20));
+      gap: var(--space-2);
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      gap: var(--space-1);
+      gap: var(--space-2);
     }
   }
 
@@ -634,8 +642,8 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: var(--space-1);
-    padding: var(--space-0-5) var(--space-0-5) var(--space-1);
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-1) var(--space-2);
     border: var(--hairline) solid var(--line);
     border-radius: var(--radius-card);
     background: var(--surface);
@@ -655,7 +663,7 @@
     }
 
     & canvas {
-      inline-size: min(100%, var(--size-17));
+      inline-size: min(100%, var(--size-34));
       block-size: auto;
       min-block-size: 0;
       aspect-ratio: var(--ratio-piece);
@@ -667,7 +675,7 @@
       font-size: var(--text-subhead);
 
       & canvas {
-        inline-size: min(100%, var(--size-12));
+        inline-size: min(100%, var(--size-24));
       }
     }
 
@@ -675,18 +683,18 @@
       font-size: var(--text-caption2);
 
       & canvas {
-        max-block-size: var(--size-5);
+        max-block-size: var(--size-10);
       }
     }
 
     @media (height <= 770px) and (orientation: landscape) {
       & canvas {
-        inline-size: min(100%, var(--size-10));
+        inline-size: min(100%, var(--size-20));
       }
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      padding: var(--space-0-5);
+      padding: var(--space-1);
       gap: 0;
       font-size: var(--text-caption2);
       line-height: var(--leading-none);
@@ -696,7 +704,7 @@
   /* Track pieces fill their cell instead of keeping the card's aspect ratio. */
   .palette[data-kind="track"] {
     --columns: 2;
-    gap: var(--space-1);
+    gap: var(--space-2);
 
     @media (width <= 1100px) and (orientation: portrait) {
       flex: 1;
@@ -708,8 +716,8 @@
       grid-template-rows: minmax(0, 1fr) auto;
       align-items: stretch;
       justify-content: stretch;
-      padding: var(--space-0-5) var(--space-0-5) var(--space-0-5);
-      gap: var(--space-1);
+      padding: var(--space-1) var(--space-1) var(--space-1);
+      gap: var(--space-2);
       font-size: clamp(var(--text-callout), var(--fluid-track), var(--text-title3));
       line-height: var(--leading-tight);
 
@@ -722,7 +730,7 @@
 
       @media (width <= 560px) and (orientation: portrait),
         (height <= 540px) and (orientation: landscape) {
-        padding-block: 0 var(--space-0-5);
+        padding-block: 0 var(--space-1);
         gap: 0;
         font-size: var(--text-caption);
       }
@@ -738,8 +746,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin: 0 0 var(--space-1);
-    padding-inline: var(--space-0-5);
+    margin: 0 0 var(--space-2);
+    padding-inline: var(--space-1);
 
     & span {
       color: var(--muted);
@@ -752,18 +760,18 @@
 
     display: grid;
     grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
-    gap: var(--space-1);
+    gap: var(--space-2);
   }
 
   .swatch {
-    --dot: var(--size-5);
+    --dot: var(--size-10);
 
     display: grid;
     place-items: center;
     min-inline-size: 0;
     inline-size: 100%;
-    block-size: var(--size-6);
-    padding: var(--space-0-5);
+    block-size: var(--size-12);
+    padding: var(--space-1);
     border: var(--hairline) solid transparent;
     border-radius: var(--radius-control);
     background: none;
@@ -780,17 +788,17 @@
     &[aria-pressed="true"] span {
       box-shadow:
         0 0 0 var(--hairline) var(--panel),
-        0 0 0 var(--space-0-5) var(--ink);
+        0 0 0 var(--space-1) var(--ink);
     }
 
     @media (width <= 560px) and (orientation: portrait) {
-      --dot: var(--size-4);
-      block-size: var(--size-5);
+      --dot: var(--size-8);
+      block-size: var(--size-10);
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      --dot: var(--size-3);
-      block-size: var(--size-4);
+      --dot: var(--size-6);
+      block-size: var(--size-8);
       padding: var(--hairline);
     }
   }
@@ -799,7 +807,7 @@
     flex: none;
     display: grid;
     grid-template-columns: 1fr auto;
-    gap: var(--space-1);
+    gap: var(--space-2);
   }
 
   .remove,
@@ -807,9 +815,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: var(--space-1);
-    min-block-size: var(--size-7);
-    padding: var(--space-0-5) var(--space-1-5);
+    gap: var(--space-2);
+    min-block-size: var(--size-14);
+    padding: var(--space-1) var(--space-3);
     border-radius: var(--radius-group);
     font-size: var(--text-subhead);
     font-weight: var(--semibold);
@@ -844,15 +852,15 @@
   .undo,
   .remove {
     @media (width <= 560px) and (orientation: portrait) {
-      min-block-size: var(--size-6);
+      min-block-size: var(--size-12);
     }
 
     @media (height <= 770px) and (orientation: landscape) {
-      min-block-size: var(--size-6);
+      min-block-size: var(--size-12);
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      min-block-size: var(--size-5);
+      min-block-size: var(--size-10);
       font-size: var(--text-caption);
     }
   }
@@ -865,17 +873,17 @@
     display: grid;
     place-items: center;
     overflow: hidden;
-    padding: var(--space-1-5) var(--space-1-5) var(--space-1-5) var(--space-1);
+    padding: var(--space-3) var(--space-3) var(--space-3) var(--space-2);
     border: var(--hairline) solid var(--frame-border);
     border-radius: var(--radius-card);
     background: var(--frame);
 
     @media (width <= 1100px) and (orientation: portrait) {
-      padding: var(--space-1);
+      padding: var(--space-2);
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      padding: var(--space-0-5);
+      padding: var(--space-1);
     }
   }
 
@@ -883,8 +891,8 @@
   .map {
     --cols: 17; /* defaults until yard.ts sets the real grid size */
     --rows: 14;
-    --row-labels: var(--size-3);
-    --column-labels: var(--size-2);
+    --row-labels: var(--size-6);
+    --column-labels: var(--size-4);
 
     display: grid;
     grid-template-columns: var(--row-labels) minmax(0, 1fr);
@@ -893,8 +901,8 @@
     block-size: 100%;
 
     @media (width <= 560px) and (orientation: portrait) {
-      --row-labels: var(--size-2);
-      --column-labels: var(--size-2);
+      --row-labels: var(--size-4);
+      --column-labels: var(--size-4);
     }
   }
 
@@ -966,13 +974,13 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: var(--space-1);
-    min-block-size: var(--size-5);
+    gap: var(--space-2);
+    min-block-size: var(--size-10);
 
     /* On narrow phones the hint gets its own row instead of wrapping into a tall column. */
     @media (width <= 560px) and (orientation: portrait) {
       flex-wrap: wrap;
-      row-gap: var(--space-1);
+      row-gap: var(--space-2);
 
       & #tool-hint {
         flex-basis: 100%;
@@ -983,14 +991,14 @@
   #tool-hint {
     display: flex;
     align-items: center;
-    gap: var(--space-1);
+    gap: var(--space-2);
     color: var(--muted);
     font-size: var(--text-caption);
     line-height: var(--leading-snug);
 
     & .icon {
-      inline-size: var(--size-2);
-      block-size: var(--size-2);
+      inline-size: var(--size-4);
+      block-size: var(--size-4);
     }
   }
 
@@ -998,7 +1006,7 @@
     display: flex;
     flex: none;
     align-items: center;
-    gap: var(--space-1);
+    gap: var(--space-2);
     margin-inline-start: auto;
   }
 
@@ -1006,13 +1014,13 @@
     display: flex;
     flex: none;
     align-items: center;
-    gap: var(--space-1);
+    gap: var(--space-2);
     white-space: nowrap;
     font-size: var(--text-footnote);
     color: var(--muted);
 
     & span {
-      margin-inline-end: var(--space-1);
+      margin-inline-end: var(--space-2);
 
       @media (width <= 560px) and (orientation: portrait) {
         display: none;
@@ -1062,13 +1070,13 @@
 
   .toast {
     position: absolute;
-    inset-block-end: var(--space-2);
+    inset-block-end: var(--space-4);
     inset-inline-start: 50%;
     translate: -50% 0;
     z-index: var(--layer-toast);
     inline-size: max-content;
-    max-inline-size: calc(100% - var(--space-3));
-    padding: var(--space-1) var(--space-1-5);
+    max-inline-size: calc(100% - var(--space-6));
+    padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-control);
     /* A translucent material, as HIG uses for transient overlays. */
     background: color-mix(in srgb, var(--toast) var(--mix-material), transparent);
@@ -1085,8 +1093,8 @@
     position: fixed;
     inset: 0 auto auto 0;
     z-index: var(--layer-drag);
-    inline-size: var(--size-9);
-    block-size: var(--size-9);
+    inline-size: var(--size-18);
+    block-size: var(--size-18);
     display: grid;
     place-items: center;
     border: var(--hairline) solid var(--selected-border);
@@ -1096,15 +1104,15 @@
     pointer-events: none;
 
     & canvas {
-      inline-size: var(--size-8);
+      inline-size: var(--size-16);
       block-size: auto;
     }
   }
 
   /* Dialogs ------------------------------------------------------------------------------- */
   dialog {
-    inline-size: min(var(--size-dialog), calc(100% - var(--space-3)));
-    padding: var(--space-3);
+    inline-size: min(var(--size-dialog), calc(100% - var(--space-6)));
+    padding: var(--space-6);
     border: var(--hairline) solid var(--line);
     border-radius: var(--radius-panel);
     background: var(--panel);
@@ -1117,7 +1125,7 @@
   }
 
   #layout-library {
-    inline-size: min(var(--size-dialog-wide), calc(100% - var(--space-3)));
+    inline-size: min(var(--size-dialog-wide), calc(100% - var(--space-6)));
   }
 
   .dialog-header {
@@ -1141,20 +1149,20 @@
   }
 
   .layout-heading {
-    margin: var(--space-2) 0 var(--space-1);
+    margin: var(--space-4) 0 var(--space-2);
   }
 
   .background-options {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(var(--size-9), 1fr));
-    gap: var(--space-1);
+    grid-template-columns: repeat(auto-fit, minmax(var(--size-18), 1fr));
+    gap: var(--space-2);
   }
 
   .background-option {
     display: grid;
     justify-items: center;
-    gap: var(--space-1);
-    padding: var(--space-0-5);
+    gap: var(--space-2);
+    padding: var(--space-1);
     min-inline-size: 0;
     border: var(--hairline) solid var(--line);
     border-radius: var(--radius-control);
@@ -1180,11 +1188,11 @@
   /* `.layout-option` is the base; `.grid-option` and `.library-button` refine it below. */
   .layout-option {
     display: flex;
-    gap: var(--space-1);
+    gap: var(--space-2);
     align-items: center;
     justify-content: center;
-    min-block-size: var(--size-7);
-    padding: var(--space-0-5);
+    min-block-size: var(--size-14);
+    padding: var(--space-1);
     border: var(--hairline) solid var(--line);
     border-radius: var(--radius-control);
     background: var(--surface);
@@ -1197,13 +1205,13 @@
 
     display: grid;
     grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
-    gap: var(--space-1);
+    gap: var(--space-2);
   }
 
   .grid-option {
     flex-direction: column;
-    gap: var(--space-1);
-    min-block-size: var(--size-6);
+    gap: var(--space-2);
+    min-block-size: var(--size-12);
     line-height: var(--leading-tight);
     text-align: center;
 
@@ -1221,7 +1229,7 @@
   .library-button {
     inline-size: 100%;
     min-block-size: var(--tap);
-    margin-block-start: var(--space-2);
+    margin-block-start: var(--space-4);
     background: var(--positive-fill);
     border-color: var(--positive-border);
     color: var(--green);
@@ -1232,8 +1240,8 @@
 
     display: grid;
     grid-template-columns: var(--primary-weight) 1fr;
-    gap: var(--space-1);
-    margin-block-start: var(--space-2);
+    gap: var(--space-2);
+    margin-block-start: var(--space-4);
   }
 
   #layout-dialog {
@@ -1243,30 +1251,30 @@
     }
 
     @media (height <= 540px) and (orientation: landscape) {
-      padding: var(--space-1-5);
+      padding: var(--space-3);
 
       & .layout-heading {
-        margin: var(--space-1) 0 var(--space-1);
+        margin: var(--space-2) 0 var(--space-2);
       }
       & .layout-option {
-        min-block-size: var(--size-5);
+        min-block-size: var(--size-10);
       }
       & .library-button {
-        margin-block-start: var(--space-1);
+        margin-block-start: var(--space-2);
       }
       & .background-option canvas {
-        max-block-size: var(--size-4);
+        max-block-size: var(--size-8);
         object-fit: cover;
       }
     }
   }
 
   .library-section {
-    margin-block-start: var(--space-2);
+    margin-block-start: var(--space-4);
 
     & label {
       display: block;
-      margin-block-end: var(--space-1);
+      margin-block-end: var(--space-2);
       font-size: var(--text-subhead);
       font-weight: var(--semibold);
     }
@@ -1274,10 +1282,10 @@
 
   #layout-library {
     @media (height <= 540px) and (orientation: landscape) {
-      padding: var(--space-1-5);
+      padding: var(--space-3);
 
       & .library-section {
-        margin-block-start: var(--space-1);
+        margin-block-start: var(--space-2);
       }
     }
   }
@@ -1285,13 +1293,13 @@
   .library-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: var(--space-1);
+    gap: var(--space-2);
 
     & input {
       inline-size: 100%;
       min-inline-size: 0;
-      min-block-size: var(--size-6);
-      padding: 0 var(--space-1);
+      min-block-size: var(--size-12);
+      padding: 0 var(--space-2);
       border: var(--hairline) solid var(--line-strong);
       border-radius: var(--radius-control);
       background: var(--panel);
@@ -1311,14 +1319,14 @@
     }
 
     & .layout-option {
-      min-block-size: var(--size-6);
-      padding-inline: var(--space-1);
+      min-block-size: var(--size-12);
+      padding-inline: var(--space-2);
       white-space: nowrap;
     }
   }
 
   .library-note {
-    margin: var(--space-2) 0 0;
+    margin: var(--space-4) 0 0;
     font-size: var(--text-footnote);
     color: var(--muted);
 
@@ -1332,8 +1340,8 @@
 
     display: grid;
     grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
-    gap: var(--space-1);
-    margin-block-start: var(--space-1);
+    gap: var(--space-2);
+    margin-block-start: var(--space-2);
   }
 
   .saved-yard {
@@ -1342,9 +1350,9 @@
     display: grid;
     justify-items: stretch;
     align-content: start;
-    gap: var(--space-1);
+    gap: var(--space-2);
     min-inline-size: 0;
-    padding: var(--space-0-5);
+    padding: var(--space-1);
     border: var(--hairline) solid var(--line);
     border-radius: var(--radius-control);
     background: var(--surface);
@@ -1361,7 +1369,7 @@
       background: var(--frame);
 
       @media (height <= 540px) and (orientation: landscape) {
-        block-size: min(var(--thumbnail-fluid), var(--size-9));
+        block-size: min(var(--thumbnail-fluid), var(--size-18));
       }
     }
 
@@ -1369,7 +1377,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      padding: 0 var(--space-0-5) var(--space-0-5);
+      padding: 0 var(--space-1) var(--space-1);
     }
   }
 
@@ -1377,14 +1385,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: var(--space-2);
-    margin-block-start: var(--space-1);
+    gap: var(--space-4);
+    margin-block-start: var(--space-2);
     font-size: var(--text-footnote);
     color: var(--muted);
 
     & .layout-option {
-      min-block-size: var(--size-5);
-      padding-inline: var(--space-1);
+      min-block-size: var(--size-10);
+      padding-inline: var(--space-2);
     }
   }
 }
@@ -1428,7 +1436,7 @@
 
       @starting-style {
         opacity: 0;
-        translate: -50% var(--space-1);
+        translate: -50% var(--space-2);
       }
     }
   }
