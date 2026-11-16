@@ -25,8 +25,8 @@ function railSound(t, noise, rumble) {
 const rollingSounds = {
   rail: railSound,
   steam(t, noise, rumble) {
-    const chuff = beat(t, 0.25, 0.022, 0.20);
-    return chuff * (0.09 * noise + 0.60 * rumble + 0.08 * tone(66, t));
+    const chuff = beat(t, 0.25, 0.022, 0.2);
+    return chuff * (0.09 * noise + 0.6 * rumble + 0.08 * tone(66, t));
   },
   diesel(t, noise, rumble) {
     const throb = 0.72 + 0.28 * tone(8, t);
@@ -46,27 +46,34 @@ const calls = {
     const first = envelope(t, 0, 0.045, 0.32);
     const second = envelope(t, 0.37, 0.055, 0.59);
     const pitch = t + 0.0008 * tone(5, t);
-    const whistle = 0.20 * tone(440, pitch) + 0.14 * tone(554, pitch) + 0.09 * tone(660, pitch);
-    return (first * 0.8 + second) * (whistle + 0.10 * noise + 0.22 * rumble);
+    const whistle = 0.2 * tone(440, pitch) + 0.14 * tone(554, pitch) + 0.09 * tone(660, pitch);
+    return (first * 0.8 + second) * (whistle + 0.1 * noise + 0.22 * rumble);
   },
   diesel(t, noise, rumble) {
     const blast = envelope(t, 0, 0.065, 0.95);
-    const chord = [175, 220, 262].reduce((sum, note) =>
-      sum + 0.14 * tone(note, t) + 0.036 * tone(note * 2, t) + 0.017 * tone(note * 3, t), 0);
+    const chord = [175, 220, 262].reduce(
+      (sum, note) =>
+        sum + 0.14 * tone(note, t) + 0.036 * tone(note * 2, t) + 0.017 * tone(note * 3, t),
+      0,
+    );
     return blast * (chord + 0.12 * rumble);
   },
   electric(t, noise, rumble) {
     const first = envelope(t, 0, 0.035, 0.38);
     const second = envelope(t, 0.26, 0.038, 0.47);
-    return first * (0.24 * tone(392, t) + 0.10 * tone(784, t)) +
-      second * (0.23 * tone(523, t) + 0.09 * tone(1046, t)) + 0.07 * (first + second) * rumble;
+    return (
+      first * (0.24 * tone(392, t) + 0.1 * tone(784, t)) +
+      second * (0.23 * tone(523, t) + 0.09 * tone(1046, t)) +
+      0.07 * (first + second) * rumble
+    );
   },
   snowplow(t, noise, rumble) {
     const blast = envelope(t, 0, 0.055, 0.32) + envelope(t, 0.34, 0.06, 0.54);
     return blast * (0.24 * tone(147, t) + 0.17 * tone(196, t) + 0.09 * tone(294, t) + 0.1 * rumble);
   },
   station(t) {
-    const ring = time => envelope(time, 0, 0.012, 0.43) *
+    const ring = (time) =>
+      envelope(time, 0, 0.012, 0.43) *
       (0.22 * tone(880, time) + 0.085 * tone(1320, time) + 0.045 * tone(2190, time));
     return ring(t) + ring(t - 0.19);
   },
@@ -121,10 +128,10 @@ export class TrainSound {
         source.connect(gain);
         gain.connect(this.master);
         source.start();
-        this.loops.set(name, {source, gain, volume: SILENT});
+        this.loops.set(name, { source, gain, volume: SILENT });
       }
     }
-    if (this.context.state !== 'running') this.context.resume().catch(() => {});
+    if (this.context.state !== "running") this.context.resume().catch(() => {});
   }
 
   setEnabled(enabled) {
@@ -151,13 +158,18 @@ export class TrainSound {
     if (!context) return;
     const active = this.enabled && !this.hidden && moving?.size;
     for (const [type, loop] of this.loops) {
-      const volume = active && (type === 'rail' || moving.has(type)) ?
-        (type === 'rail' ? RAIL_VOLUME : 0.72 / Math.sqrt(moving.size)) : SILENT;
+      const volume =
+        active && (type === "rail" || moving.has(type))
+          ? type === "rail"
+            ? RAIL_VOLUME
+            : 0.72 / Math.sqrt(moving.size)
+          : SILENT;
       if (loop.volume !== volume) {
         loop.gain.gain.setTargetAtTime(volume, context.currentTime, 0.055);
         loop.volume = volume;
       }
-      if (this.speed !== speed) loop.source.playbackRate.setTargetAtTime(speed, context.currentTime, 0.07);
+      if (this.speed !== speed)
+        loop.source.playbackRate.setTargetAtTime(speed, context.currentTime, 0.07);
     }
     this.speed = speed;
   }
@@ -172,7 +184,7 @@ export class TrainSound {
     const context = this.context;
     if (!context) return;
     if (!this.buffers.has(type)) this.buffers.set(type, makeBuffer(context, 1.08, calls[type]));
-    if (type !== 'station' && this.horn) this.horn.stop();
+    if (type !== "station" && this.horn) this.horn.stop();
     const horn = context.createBufferSource();
     horn.buffer = this.buffers.get(type);
     horn.connect(this.master);
@@ -180,7 +192,7 @@ export class TrainSound {
       if (this.horn === horn) this.horn = null;
       horn.disconnect();
     };
-    if (type !== 'station') this.horn = horn;
+    if (type !== "station") this.horn = horn;
     horn.start();
   }
 }
