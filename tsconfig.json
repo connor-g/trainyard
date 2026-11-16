@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    // Latest Safari supports all of ES2025; ES2026 features such as `using` are not in stable Safari yet.
+    "target": "es2025",
+    "lib": ["es2025", "dom", "dom.iterable"],
+    "module": "nodenext",
+    "types": ["node"],
+
+    "strict": true,
+    "erasableSyntaxOnly": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+
+    // Type-check only; Node runs .mts directly by stripping types.
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+
+    // Let TypeScript modules import the existing JavaScript. Opt a .mjs file into checking with `// @ts-check`.
+    "allowJs": true,
+    "checkJs": false
+  },
+  "include": ["*.mjs", "*.mts", "public/**/*.mjs", "public/**/*.mts"]
+}
