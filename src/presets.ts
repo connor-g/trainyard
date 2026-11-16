@@ -1,5 +1,5 @@
-import { blankLayout, couple, indexAt, startTrain, trackPaths } from "./src/railway.ts";
-import type { ColorName, Layout, Point, StockType, TrackType } from "./src/railway.ts";
+import { blankLayout, couple, indexAt, startTrain, trackPaths } from "./railway.ts";
+import type { ColorName, Layout, Point, StockType, TrackType } from "./railway.ts";
 
 type Feature = [x: number, y: number, type: TrackType];
 type CarSpec = [type: StockType, color: ColorName];

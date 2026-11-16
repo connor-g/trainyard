@@ -6,10 +6,6 @@ export default defineConfig({
     // as written instead of lowering it for older browsers.
     target: "safari26",
   },
-  server: {
-    // Forward save/load requests to the layouts service (`node layouts.ts`) during development.
-    proxy: { "/api/layouts": "http://127.0.0.1:3000" },
-  },
   fmt: {},
   lint: {
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
