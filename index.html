@@ -83,18 +83,27 @@
           <span id="tool-hint"></span>
           <div id="remove" class="remove"></div>
           <div class="train-controls">
-            <div class="speed" role="group" aria-label="Train speed">
-              <span>Speed</span>
-              <button
-                type="button"
-                data-speed="0"
-                aria-label="Pause"
-                aria-pressed="false"
-                title="Pause"
-              ></button>
-              <button type="button" data-speed="0.5" aria-pressed="false">½×</button>
-              <button type="button" data-speed="1" aria-pressed="true">1×</button>
-              <button type="button" data-speed="2" aria-pressed="false">2×</button>
+            <div class="speed">
+              <label class="speed-label" for="speed-picker">Speed</label>
+              <div class="speed-lever" id="speed-lever">
+                <div class="speed-detents" aria-hidden="true">
+                  <span id="speed-pause"></span>
+                  <span>½×</span>
+                  <span>1×</span>
+                  <span>2×</span>
+                </div>
+                <div class="speed-grip" aria-hidden="true"></div>
+                <input
+                  type="range"
+                  id="speed-picker"
+                  min="0"
+                  max="3"
+                  step="1"
+                  value="2"
+                  aria-label="Train speed"
+                  aria-valuetext="Normal speed"
+                />
+              </div>
             </div>
             <button
               type="button"

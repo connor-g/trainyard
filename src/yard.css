@@ -993,58 +993,124 @@
     flex: none;
     align-items: center;
     gap: var(--space-2);
-    white-space: nowrap;
     font-size: var(--text-footnote);
     color: var(--muted);
+  }
+
+  .speed-label {
+    @media (width <= 800px) and (orientation: landscape),
+      (width <= 560px) and (orientation: portrait) {
+      display: none;
+    }
+  }
+
+  .speed-lever {
+    position: relative;
+    inline-size: calc(4 * var(--tap));
+    block-size: var(--tap);
+    border-radius: var(--radius-card);
+    background: linear-gradient(#454744, #2a2c2a);
+    box-shadow:
+      inset 0 0 0 var(--hairline) #1a1b1a,
+      inset 0 var(--hairline-thick) 0 #646762;
+    user-select: none;
+
+    /* The slot extends just past the center of the first and last detents. */
+    &::before {
+      content: "";
+      position: absolute;
+      inset-block-start: var(--space-3);
+      inset-inline: calc(var(--tap) / 2 - var(--space-2));
+      block-size: var(--space-2);
+      border-radius: var(--radius-inset);
+      background: #161715;
+      box-shadow:
+        inset 0 var(--hairline-thick) var(--hairline-thick) #0a0b0a,
+        0 var(--hairline) 0 #70736e;
+    }
+
+    /* The range keeps its native keyboard and accessibility behavior. */
+    & input {
+      position: absolute;
+      inset: 0;
+      inline-size: 100%;
+      block-size: 100%;
+      margin: 0;
+      opacity: 0;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    &:has(input:focus-visible) {
+      outline: var(--focus-ring);
+      outline-offset: var(--focus-ring-offset);
+    }
+  }
+
+  .speed-detents {
+    position: absolute;
+    inset: var(--space-6) 0 0;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    /* The lever plate is dark in both app themes. */
+    color-scheme: dark;
+    font-size: var(--text-caption);
+    font-weight: var(--semibold);
+    line-height: var(--leading-none);
 
     & span {
-      margin-inline-end: var(--space-2);
-
-      @media (width <= 800px) and (orientation: landscape),
-        (width <= 560px) and (orientation: portrait) {
-        display: none;
-      }
-    }
-
-    & button {
       display: grid;
-      place-items: center;
-      min-inline-size: var(--tap);
-      block-size: var(--tap);
-      border: var(--hairline) solid var(--speed-border);
-      border-radius: var(--radius-card);
-      background: var(--speed-fill);
-      color: var(--speed-ink);
-      font-weight: var(--semibold);
+      justify-items: center;
+      align-content: center;
+      gap: var(--hairline-thick);
 
-      &[aria-pressed="true"] {
-        background: var(--speed-ink);
-        border-color: var(--speed-ink);
-        color: contrast-color(var(--speed-ink));
+      &:nth-child(1) {
+        color: color-mix(in srgb, var(--accessible-red), white 12%);
+      }
+
+      &:nth-child(2) {
+        color: var(--accessible-yellow);
+      }
+
+      &:nth-child(3) {
+        color: var(--accessible-green);
+      }
+
+      &:nth-child(4) {
+        color: color-mix(in srgb, var(--accessible-blue), white 12%);
+      }
+
+      &::before {
+        content: "";
+        inline-size: var(--hairline-thick);
+        block-size: var(--space-1);
+        background: #a5a7a0;
       }
     }
 
-    /* Each speed has its own system hue, from warm (stopped) to cool (fast). */
-    & button {
-      --speed-fill: color-mix(in srgb, var(--speed-hue) var(--mix-fill), transparent);
-      --speed-border: color-mix(in srgb, var(--speed-hue) var(--mix-border), transparent);
+    & .icon {
+      inline-size: var(--space-3);
+      block-size: var(--space-3);
     }
-    & [data-speed="0"] {
-      --speed-hue: var(--system-orange);
-      --speed-ink: var(--accessible-orange);
-    }
-    & [data-speed="0.5"] {
-      --speed-hue: var(--system-yellow);
-      --speed-ink: var(--accessible-yellow);
-    }
-    & [data-speed="1"] {
-      --speed-hue: var(--system-green);
-      --speed-ink: var(--accessible-green);
-    }
-    & [data-speed="2"] {
-      --speed-hue: var(--system-blue);
-      --speed-ink: var(--accessible-blue);
-    }
+  }
+
+  .speed-grip {
+    position: absolute;
+    inset-block-start: var(--space-1);
+    inset-inline-start: calc((var(--tap) - var(--size-6)) / 2);
+    inline-size: var(--size-6);
+    block-size: var(--space-6);
+    border: var(--hairline) solid #74371b;
+    border-radius: var(--radius-inset);
+    background:
+      repeating-linear-gradient(90deg, #8b4020 0 1px, #f0a16c 1px 2px, transparent 2px 4px) center /
+        12px 10px no-repeat,
+      linear-gradient(#f3b884, #d67c45 55%, #b3592c);
+    box-shadow:
+      inset 0 var(--hairline) 0 #ffdbb7,
+      inset 0 calc(-1 * var(--hairline-thick)) 0 #a65128,
+      0 var(--hairline-thick) var(--hairline-thick) #161715;
+    translate: calc(var(--detent, 2) * var(--tap)) 0;
   }
 
   /*
@@ -1572,11 +1638,8 @@
       }
     }
 
-    .speed button {
-      transition:
-        background-color var(--duration-enter) var(--ease-out),
-        border-color var(--duration-enter) var(--ease-out),
-        color var(--duration-enter) var(--ease-out);
+    .speed-grip {
+      transition: translate var(--duration-enter) var(--ease-out);
     }
 
     /* Saved yards arrive one after another, in the order they are listed. */

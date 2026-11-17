@@ -88,11 +88,20 @@ try {
   sound.enabled = localStorage.getItem(soundKey) !== "yes";
 } catch {}
 const soundButton = $("sound");
+const speedPicker = $<HTMLInputElement>("speed-picker");
+const speedLever = $("speed-lever");
+const speedSettings = [
+  { multiplier: 0, label: "Paused" },
+  { multiplier: 0.5, label: "Half speed" },
+  { multiplier: 1, label: "Normal speed" },
+  { multiplier: 2, label: "Double speed" },
+] as const;
+type Speed = (typeof speedSettings)[number]["multiplier"];
 /** What the worker last reported; null until it first does. */
 let status: Status | null = null;
 let paletteKind: PaletteKind = "track";
 let color: ColorName = "brick";
-let speed = 1;
+let speed: Speed = 1;
 /** The engine types rolling, for the rolling sound. */
 let rolling: ReadonlySet<string> = new Set();
 let keyboardSquare: Point = [0, 0];
@@ -811,19 +820,42 @@ $("save-layout").onsubmit = async (event) => {
   library.close();
   notify("Saved " + name + " to " + yardLibrary.settings.name + ".");
 };
-const speedButtons = document.querySelectorAll<HTMLButtonElement>("[data-speed]");
-document.querySelector('[data-speed="0"]')!.innerHTML = icon("pause");
-function setSpeed(nextSpeed: number) {
+$("speed-pause").innerHTML = icon("pause");
+function setSpeed(nextSpeed: Speed) {
+  if (nextSpeed === speed) return;
   speed = nextSpeed;
+  const detent = speedSettings.findIndex((setting) => setting.multiplier === speed);
+  speedPicker.valueAsNumber = detent;
+  speedPicker.setAttribute("aria-valuetext", speedSettings[detent].label);
+  speedLever.style.setProperty("--detent", String(detent));
   send({ type: "speed", speed });
   if (speed) sound.update(rolling, speed);
   else sound.stopRolling();
-  for (const button of speedButtons)
-    button.setAttribute("aria-pressed", String(Number(button.dataset.speed) === speed));
 }
-for (const button of speedButtons) {
-  button.onclick = () => setSpeed(Number(button.dataset.speed));
+
+speedPicker.oninput = () => setSpeed(speedSettings[speedPicker.valueAsNumber].multiplier);
+
+// The whole housing is a pointer target, including the labels below the slot.
+function moveSpeedLever(clientX: number) {
+  const { left, width } = speedPicker.getBoundingClientRect();
+  const position = (clientX - left) / width;
+  const detent = Math.min(
+    speedSettings.length - 1,
+    Math.max(0, Math.floor(position * speedSettings.length)),
+  );
+  setSpeed(speedSettings[detent].multiplier);
 }
+speedPicker.onpointerdown = (event) => {
+  if (!event.isPrimary || event.button !== 0) return;
+  event.preventDefault();
+  speedPicker.focus({ preventScroll: true });
+  speedPicker.setPointerCapture(event.pointerId);
+  moveSpeedLever(event.clientX);
+};
+speedPicker.onpointermove = speedPicker.onpointerup = (event) => {
+  if (speedPicker.hasPointerCapture(event.pointerId)) moveSpeedLever(event.clientX);
+};
+
 function updateSoundButton() {
   soundButton.innerHTML = icon(sound.enabled ? "sound" : "mute");
   soundButton.setAttribute("aria-pressed", String(sound.enabled));
