@@ -257,7 +257,7 @@ function showLibrary() {
     const caption = document.createElement("span");
     caption.textContent = index === 0 ? "New yard" : yard.name;
     button.append(thumbnail, caption);
-    button.onclick = () => {
+    button.addEventListener("click", () => {
       void edit({ type: "replace", yard });
       if (index === 0) {
         if (!speed) setSpeed(1);
@@ -265,7 +265,7 @@ function showLibrary() {
       }
       library.close();
       if (index !== 0) notify("Loaded " + yard.name + ".");
-    };
+    });
     savedLayouts.append(button);
   });
   $("library-pages").hidden = pages === 1;
@@ -275,14 +275,14 @@ function showLibrary() {
   updateSaveLabel(libraryEntries);
 }
 
-$("library-prev").onclick = () => {
+$("library-prev").addEventListener("click", () => {
   libraryPage -= 1;
   showLibrary();
-};
-$("library-next").onclick = () => {
+});
+$("library-next").addEventListener("click", () => {
   libraryPage += 1;
   showLibrary();
-};
+});
 
 function updateSaveLabel(entries: readonly SavedYard[]) {
   const name = yardNameKey(saveName.value.trim());
@@ -376,10 +376,10 @@ for (const [key, name] of Object.entries(BACKGROUNDS) as [Background, string][])
   button.className = "background-option";
   button.dataset.background = key;
   button.append(picture(pictureUrl({ kind: "ground", background: key })), name);
-  button.onclick = () => {
+  button.addEventListener("click", () => {
     void edit({ type: "setBackground", background: key });
     dialog.close("background");
-  };
+  });
   $("backgrounds").append(button);
 }
 const gridNote = $("grid-note");
@@ -405,7 +405,7 @@ for (const size of GRID_SIZES) {
   const dimensions = document.createElement("span");
   dimensions.textContent = size.cols + " × " + size.rows;
   button.append(size.label, dimensions);
-  button.onclick = async () => {
+  button.addEventListener("click", async () => {
     resetGridNotice();
     if (size.cols === currentSize().cols) return;
     const result = await edit({ type: "resize", size });
@@ -416,18 +416,18 @@ for (const size of GRID_SIZES) {
     gridNote.hidden = false;
     blankAtSize.textContent = "Start blank at " + dimensions.textContent;
     blankAtSize.hidden = false;
-  };
+  });
   $("grid-sizes").append(button);
 }
 
-blankAtSize.onclick = () => {
+blankAtSize.addEventListener("click", () => {
   if (pendingSize) startBlank(pendingSize);
-};
+});
 
-$("start-blank").onclick = () => {
+$("start-blank").addEventListener("click", () => {
   startBlank(currentSize());
   setPalette("track");
-};
+});
 
 function updateCoordinates(cols: number, rows: number) {
   if ($("columns").children.length === cols && $("rows").children.length === rows) return;
@@ -664,9 +664,9 @@ yardCanvas.addEventListener("keydown", (event) => {
 });
 yardCanvas.addEventListener("blur", () => send({ type: "keyboard", square: null }));
 
-$("track-tab").onclick = () => setPalette("track");
-$("cars-tab").onclick = () => setPalette("cars");
-$("undo").onclick = () => send({ type: "undo" });
+$("track-tab").addEventListener("click", () => setPalette("track"));
+$("cars-tab").addEventListener("click", () => setPalette("cars"));
+$("undo").addEventListener("click", () => send({ type: "undo" }));
 // The Layouts button opens the dialog with `command="show-modal"`; reset it as it opens.
 dialog.addEventListener("command", (event) => {
   if (!(event instanceof CommandEvent) || event.command !== "show-modal") return;
@@ -735,18 +735,18 @@ async function reloadLibrary() {
   showLibrary();
 }
 
-librarySelect.onchange = () => {
+librarySelect.addEventListener("change", () => {
   const settings = readLibraries(settingsStore).find(({ id }) => id === librarySelect.value);
   if (settings) void useLibrary(settings);
-};
-removeLibraryButton.onclick = () => {
+});
+removeLibraryButton.addEventListener("click", () => {
   const { id, name } = yardLibrary.settings;
   if (id === DEFAULT_LIBRARY.id) return;
   if (!confirm("Remove " + name + "? Yards saved in it stay in the bucket.")) return;
   removeLibrary(settingsStore, id);
   void useLibrary(DEFAULT_LIBRARY);
-};
-s3Form.onsubmit = async (event) => {
+});
+s3Form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const field = (name: string) =>
     (s3Form.elements.namedItem(name) as HTMLInputElement).value.trim();
@@ -778,9 +778,9 @@ s3Form.onsubmit = async (event) => {
   s3Form.reset();
   $<HTMLDetailsElement>("add-library").open = false;
   await useLibrary(added);
-};
+});
 
-$("open-library").onclick = () => {
+$("open-library").addEventListener("click", () => {
   saveName.value = status?.name ?? "";
   fillLibrarySelect();
   void reloadLibrary();
@@ -788,9 +788,9 @@ $("open-library").onclick = () => {
     dialog.close("library");
     library.showModal();
   });
-};
-saveName.oninput = () => updateSaveLabel(libraryEntries);
-$("save-layout").onsubmit = async (event) => {
+});
+saveName.addEventListener("input", () => updateSaveLabel(libraryEntries));
+$("save-layout").addEventListener("submit", async (event) => {
   event.preventDefault();
   const name = saveName.value.trim().slice(0, 48);
   if (!name) {
@@ -812,7 +812,7 @@ $("save-layout").onsubmit = async (event) => {
   void edit({ type: "rename", name });
   library.close();
   notify("Saved " + name + " to " + yardLibrary.settings.name + ".");
-};
+});
 const speedButtons = document.querySelectorAll<HTMLButtonElement>("[data-speed]");
 document.querySelector('[data-speed="0"]')!.innerHTML = icon("pause");
 function setSpeed(nextSpeed: number) {
@@ -824,19 +824,19 @@ function setSpeed(nextSpeed: number) {
     button.setAttribute("aria-pressed", String(Number(button.dataset.speed) === speed));
 }
 for (const button of speedButtons) {
-  button.onclick = () => setSpeed(Number(button.dataset.speed));
+  button.addEventListener("click", () => setSpeed(Number(button.dataset.speed)));
 }
 function updateSoundButton() {
   soundButton.innerHTML = icon(sound.enabled ? "sound" : "mute");
   soundButton.setAttribute("aria-pressed", String(sound.enabled));
 }
-soundButton.onclick = () => {
+soundButton.addEventListener("click", () => {
   sound.setEnabled(!sound.enabled);
   try {
     localStorage.setItem(soundKey, sound.enabled ? "no" : "yes");
   } catch {}
   updateSoundButton();
-};
+});
 for (const activation of ["pointerup", "click", "keydown"]) {
   document.addEventListener(activation, () => sound.unlock(), { capture: true, passive: true });
 }
