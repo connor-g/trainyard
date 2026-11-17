@@ -98,10 +98,7 @@
 
     /* Yard: the board is artwork, not interface chrome, so it keeps its own palette. */
     --frame: light-dark(#e9edda, #263123);
-    --frame-border: light-dark(#d5dec2, #3c4b37);
     --board: #cedcaa;
-    --board-edge: light-dark(#a1b281, #5d6e48);
-    --coordinate: light-dark(#526748, #a7bd96);
 
     /* Overlays: one tint, mixed to the strength each use needs */
     --shade: #000;
@@ -816,77 +813,22 @@
     position: relative;
     flex: 1;
     min-block-size: 0;
-    display: grid;
-    place-items: center;
     overflow: hidden;
-    padding: var(--inset-padding);
-    border: var(--hairline) solid var(--frame-border);
-    border-radius: var(--radius-card);
-    background: var(--frame);
   }
 
   /*
-   * The map keeps its squares square: each is as large as both the frame's width and its height
-   * allow, after the coordinate gutters. yard.ts reports the board's resulting size to the worker.
+   * Fill the panel's padded width from the top. Keep square cells when the frame is tall enough.
    */
-  .map {
+  .board {
     --cols: 17; /* defaults until yard.ts sets the real grid size */
     --rows: 14;
-    --row-labels: var(--size-6);
-    --column-labels: var(--size-4);
-    --cell: max(
-      var(--hairline),
-      min((100cqi - var(--row-labels)) / var(--cols), (100cqb - var(--column-labels)) / var(--rows))
-    );
 
-    display: grid;
-    grid-template-columns: var(--row-labels) minmax(0, 1fr);
-    grid-template-rows: var(--column-labels) minmax(0, 1fr);
-    inline-size: calc(var(--cell) * var(--cols) + var(--row-labels));
-    block-size: calc(var(--cell) * var(--rows) + var(--column-labels));
-
-    @media (width <= 560px) and (orientation: portrait) {
-      --row-labels: var(--size-4);
-      --column-labels: var(--size-4);
-    }
-  }
-
-  .coordinates {
-    color: var(--coordinate);
-    font-size: var(--text-caption2);
-    font-weight: var(--semibold);
-    font-variant-numeric: tabular-nums;
-    line-height: var(--leading-none);
-    pointer-events: none;
-
-    @media (width <= 560px) and (orientation: portrait) {
-      font-size: var(--text-caption2);
-    }
-  }
-
-  .columns {
-    grid-column: 2;
-    display: grid;
-    grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
-    align-items: start;
-    text-align: center;
-  }
-
-  .rows {
-    grid-row: 2;
-    display: grid;
-    grid-template-rows: repeat(var(--rows), minmax(0, 1fr));
-    align-items: center;
-    text-align: start;
-  }
-
-  .board {
-    grid-area: 2 / 2;
     position: relative;
+    inline-size: 100%;
+    block-size: min(100cqb, 100cqi * var(--rows) / var(--cols));
     overflow: hidden;
-    border-radius: var(--radius-inset);
+    border-radius: var(--radius-card);
     background: var(--board);
-    box-shadow: 0 0 0 var(--hairline) var(--board-edge);
 
     & canvas {
       position: absolute;

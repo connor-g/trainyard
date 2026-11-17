@@ -58,18 +58,14 @@
       </aside>
 
       <section class="yard" aria-labelledby="layout-name">
-        <div class="map-frame" id="map-frame">
-          <div class="map" id="map">
-            <div id="columns" class="coordinates columns" aria-hidden="true"></div>
-            <div id="rows" class="coordinates rows" aria-hidden="true"></div>
-            <div class="board">
-              <canvas
-                id="yard-canvas"
-                tabindex="0"
-                aria-label="Rail yard grid"
-                aria-describedby="grid-help"
-              ></canvas>
-            </div>
+        <div class="map-frame">
+          <div class="board" id="board">
+            <canvas
+              id="yard-canvas"
+              tabindex="0"
+              aria-label="Rail yard grid"
+              aria-describedby="grid-help"
+            ></canvas>
             <span id="grid-help" class="sr-only"
               >Drag pieces from the palette onto the grid. Drag a placed track to move it or replace
               another track, or tap it to turn it. Tap an engine to hear its horn or a crane car to

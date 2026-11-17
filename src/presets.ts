@@ -106,18 +106,19 @@ function buildYard(
 export function sampleLayout(): Yard {
   const yard = draft("Meadow Loop");
   const { grid, cols } = yard;
+  const bottomRow = 10;
   const put = (x: number, y: number, type: TrackType, turn = 0) => {
     grid[indexAt(x, y, cols)] = { type, turn, branch: false };
   };
   put(3, 2, "curve");
   put(13, 2, "curve", 1);
-  put(13, 9, "curve", 2);
-  put(3, 9, "curve", 3);
+  put(13, bottomRow, "curve", 2);
+  put(3, bottomRow, "curve", 3);
   for (let x = 4; x < 13; x += 1) {
     put(x, 2, "straight");
-    put(x, 9, "straight");
+    put(x, bottomRow, "straight");
   }
-  for (let y = 3; y < 9; y += 1) {
+  for (let y = 3; y < bottomRow; y += 1) {
     put(3, y, "straight", 1);
     put(13, y, "straight", 1);
   }
@@ -132,7 +133,7 @@ export function sampleLayout(): Yard {
   return finish(yard, "meadow", [
     [
       6,
-      9,
+      bottomRow,
       [
         ["steam", "brick"],
         ["box", "amber"],

@@ -75,7 +75,7 @@ const children = <T extends HTMLElement = HTMLElement>(parent: Element) =>
   Array.from(parent.children) as T[];
 const palette = $("palette");
 const removeZone = $("remove");
-const map = $("map");
+const board = $("board");
 const yardCanvas = $<HTMLCanvasElement>("yard-canvas");
 const dialog = $<HTMLDialogElement>("layout-dialog");
 const library = $<HTMLDialogElement>("layout-library");
@@ -364,7 +364,10 @@ function applyStatus(next: Status) {
   for (const button of children($("backgrounds"))) {
     button.setAttribute("aria-pressed", String(button.dataset.background === next.background));
   }
-  if (resized) updateCoordinates(next.cols, next.rows);
+  if (resized) {
+    board.style.setProperty("--cols", String(next.cols));
+    board.style.setProperty("--rows", String(next.rows));
+  }
 }
 
 const buttons: [id: string, symbol: Symbol, text: string][] = [
@@ -437,24 +440,6 @@ $("start-blank").onclick = () => {
   startBlank(currentSize());
   setPalette("track");
 };
-
-function updateCoordinates(cols: number, rows: number) {
-  if ($("columns").children.length === cols && $("rows").children.length === rows) return;
-  map.style.setProperty("--cols", String(cols));
-  map.style.setProperty("--rows", String(rows));
-  const columns = Array.from({ length: cols }, (_, index) => {
-    const label = document.createElement("span");
-    label.textContent = String.fromCharCode(65 + index);
-    return label;
-  });
-  const rowLabels = Array.from({ length: rows }, (_, index) => {
-    const label = document.createElement("span");
-    label.textContent = String(index + 1);
-    return label;
-  });
-  $("columns").replaceChildren(...columns);
-  $("rows").replaceChildren(...rowLabels);
-}
 
 /* Palette ------------------------------------------------------------------------------- */
 
