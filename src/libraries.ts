@@ -182,7 +182,9 @@ export function setActiveLibrary(settings: SettingsStore, id: string): void {
 
 /** Adds a library, giving it a fresh id, and returns its settings. */
 export function addLibrary(settings: SettingsStore, library: NewLibrary): LibrarySettings {
-  const added: unknown = { ...library, id: crypto.randomUUID() };
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  const id = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  const added: unknown = { ...library, id };
   if (!isLibrarySettings(added)) throw new TypeError("These library settings are incomplete");
   writeLibraries(settings, [...readLibraries(settings), added]);
   return added;

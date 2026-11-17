@@ -1,7 +1,16 @@
 import "fake-indexeddb/auto";
 import { delay, http } from "msw";
 import { setupServer } from "msw/node";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "vite-plus/test";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+  vi,
+} from "vite-plus/test";
 
 import { BlobExistsError, BlobNotFoundError } from "../src/storage/blob-storage.ts";
 import type { BlobStorage } from "../src/storage/blob-storage.ts";
@@ -170,6 +179,21 @@ contract("S3 storage", () => {
 });
 
 describe("S3 storage requests", () => {
+  test("signs requests to an HTTP bucket without Web Crypto", async () => {
+    const bucketUrl = "http://nas.local:9000/trainyard";
+    const bucket = fakeBucket(bucketUrl);
+    const storage = new S3Storage({ bucketUrl, accessKeyId: "id", secretAccessKey: "secret" });
+    vi.stubGlobal("crypto", { getRandomValues: crypto.getRandomValues.bind(crypto) });
+    try {
+      await storage.create("yards/O'Brien.json", text("{}"));
+      expect(await (await storage.read("yards/O'Brien.json"))?.text()).toBe("{}");
+      expect(bucket.requests[0].url).toBe(bucketUrl + "/yards/O%27Brien.json");
+      expect(bucket.requests[0].headers.get("Authorization")).toContain("/us-east-1/s3/");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   test("signs requests and keeps keys under the key prefix", async () => {
     const bucketUrl = "https://account.r2.cloudflarestorage.com/bucket/";
     const bucket = fakeBucket(bucketUrl);

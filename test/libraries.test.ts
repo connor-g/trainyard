@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { describe, expect, test } from "vite-plus/test";
+import { describe, expect, test, vi } from "vite-plus/test";
 
 import {
   DEFAULT_LIBRARY,
@@ -58,6 +58,17 @@ describe("library settings", () => {
     removeLibrary(settings, added.id);
     expect(readLibraries(settings)).toEqual([DEFAULT_LIBRARY]);
     expect(activeLibrary(settings)).toEqual(DEFAULT_LIBRARY);
+  });
+
+  test("adds an HTTP library when randomUUID is unavailable", () => {
+    vi.stubGlobal("crypto", { getRandomValues: crypto.getRandomValues.bind(crypto) });
+    try {
+      const settings = memorySettings();
+      const added = addLibrary(settings, { ...s3, bucketUrl: "http://nas.local:9000/trainyard" });
+      expect(readLibraries(settings)).toEqual([DEFAULT_LIBRARY, added]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   test("refuses incomplete S3 settings", () => {

@@ -750,16 +750,14 @@ s3Form.onsubmit = async (event) => {
   event.preventDefault();
   const field = (name: string) =>
     (s3Form.elements.namedItem(name) as HTMLInputElement).value.trim();
-  const region = field("region");
-  const keyPrefix = field("keyPrefix");
   const settings: NewLibrary = {
     kind: "s3",
     name: field("name"),
     bucketUrl: field("bucketUrl"),
     accessKeyId: field("accessKeyId"),
     secretAccessKey: field("secretAccessKey"),
-    ...(region && { region }),
-    ...(keyPrefix && { keyPrefix }),
+    region: field("region") || "us-east-1",
+    keyPrefix: field("keyPrefix") || "trainyard/",
   };
   const submit = $<HTMLButtonElement>("add-s3");
   submit.disabled = true;
