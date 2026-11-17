@@ -2,13 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Caleb's Train Yard" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="manifest" href="/yard.webmanifest" />
@@ -26,7 +22,13 @@
       <div class="top-actions">
         <div class="layout-toolbar">
           <h2 id="layout-name">Meadow Loop</h2>
-          <button class="button secondary" id="layouts"></button>
+          <button
+            type="button"
+            class="button secondary"
+            id="layouts"
+            commandfor="layout-dialog"
+            command="show-modal"
+          ></button>
           <button
             type="button"
             class="button"
@@ -75,7 +77,7 @@
               or Delete to remove a piece.</span
             >
           </div>
-          <div class="toast" id="toast" role="status" hidden></div>
+          <div class="toast" id="toast" role="status" popover="manual"></div>
         </div>
         <div class="yard-footer">
           <span id="tool-hint"></span>
@@ -111,7 +113,13 @@
       <form method="dialog">
         <div class="dialog-header">
           <h2>Layouts</h2>
-          <button class="close" value="cancel" aria-label="Close"></button>
+          <button
+            type="button"
+            class="close"
+            commandfor="layout-dialog"
+            command="request-close"
+            aria-label="Close"
+          ></button>
         </div>
         <h3 class="layout-heading" id="background-title">Background</h3>
         <div
@@ -140,12 +148,21 @@
     <dialog id="layout-library" aria-labelledby="library-title">
       <div class="dialog-header">
         <h2 id="library-title">Saved yards</h2>
-        <button type="button" class="close" aria-label="Close" autofocus></button>
+        <button
+          type="button"
+          class="close"
+          commandfor="layout-library"
+          command="request-close"
+          aria-label="Close"
+          autofocus
+        ></button>
       </div>
       <section class="library-section" aria-labelledby="storage-title">
         <label for="library-select" id="storage-title">Library</label>
         <div class="library-row">
-          <select id="library-select"></select>
+          <select id="library-select">
+            <button type="button"><selectedcontent></selectedcontent></button>
+          </select>
           <button type="button" class="layout-option" id="remove-library" hidden>Remove</button>
         </div>
         <details id="add-library" class="add-library">

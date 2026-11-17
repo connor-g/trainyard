@@ -75,7 +75,6 @@ const children = <T extends HTMLElement = HTMLElement>(parent: Element) =>
   Array.from(parent.children) as T[];
 const palette = $("palette");
 const removeZone = $("remove");
-const frame = $("map-frame");
 const map = $("map");
 const yardCanvas = $<HTMLCanvasElement>("yard-canvas");
 const dialog = $<HTMLDialogElement>("layout-dialog");
@@ -308,14 +307,33 @@ function refuse(reason: Refusal) {
   if (refusalMessages[reason]) notify(refusalMessages[reason]);
 }
 
+/** The toast is a manual popover, so it shows in the top layer, above any open dialog. */
+const toast = $("toast");
+
 function notify(message: string) {
-  const toast = $("toast");
-  toast.hidden = false;
   toast.textContent = message;
+  if (!toast.matches(":popover-open")) toast.showPopover();
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    toast.hidden = true;
-  }, 2300);
+  toastTimer = setTimeout(() => toast.hidePopover(), 2300);
+}
+
+const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+
+/**
+ * Runs a DOM update inside a view transition, unless the player prefers reduced motion. `kind` is
+ * set on the root while it runs, so the stylesheet can give elements names for that kind alone.
+ */
+async function transition(kind: string, update: () => void) {
+  if (reducedMotion.matches) return update();
+  const root = document.documentElement;
+  root.dataset.transition = kind;
+  try {
+    await document.startViewTransition(update).finished;
+  } catch {
+    // A skipped transition has still applied the update.
+  } finally {
+    if (root.dataset.transition === kind) delete root.dataset.transition;
+  }
 }
 
 /* Status -------------------------------------------------------------------------------- */
@@ -337,7 +355,7 @@ function applyStatus(next: Status) {
   for (const button of children($("backgrounds"))) {
     button.setAttribute("aria-pressed", String(button.dataset.background === next.background));
   }
-  if (resized) resize();
+  if (resized) updateCoordinates(next.cols, next.rows);
 }
 
 const buttons: [id: string, symbol: Symbol, text: string][] = [
@@ -350,9 +368,7 @@ $("undo").innerHTML = icon("undo") + "<span>Undo</span>";
 $("layouts").innerHTML = icon("layout") + "<span>Layouts</span>";
 $("layouts").setAttribute("aria-label", "Layouts");
 dialog.querySelector(".close")!.innerHTML = icon("close");
-const closeLibrary = library.querySelector<HTMLButtonElement>(".close")!;
-closeLibrary.innerHTML = icon("close");
-closeLibrary.onclick = () => library.close();
+library.querySelector(".close")!.innerHTML = icon("close");
 
 for (const [key, name] of Object.entries(BACKGROUNDS) as [Background, string][]) {
   const button = document.createElement("button");
@@ -496,30 +512,22 @@ for (const [key, [name, fill]] of Object.entries(COLORS) as [ColorName, [string,
 function setPalette(next: PaletteKind) {
   if (next === paletteKind || drag) return;
   paletteKind = next;
-  fillPalette();
+  void transition("palette", fillPalette);
 }
 
 /* Board --------------------------------------------------------------------------------- */
 
-/** Sizes the board to fit and tells the worker its size in device pixels. */
-function resize() {
-  if (!status) return;
-  const { cols, rows } = status;
-  updateCoordinates(cols, rows);
-  const area = getComputedStyle(frame);
-  const track = getComputedStyle(map);
-  const width = frame.clientWidth - parseFloat(area.paddingLeft) - parseFloat(area.paddingRight);
-  const height = frame.clientHeight - parseFloat(area.paddingTop) - parseFloat(area.paddingBottom);
-  const marginX = parseFloat(track.gridTemplateColumns);
-  const marginY = parseFloat(track.gridTemplateRows);
-  const cell = Math.max(1, Math.min((width - marginX) / cols, (height - marginY) / rows));
-  map.style.width = cell * cols + marginX + "px";
-  map.style.height = cell * rows + marginY + "px";
+/**
+ * Tells the worker the board's size in device pixels. The stylesheet sizes the board to fit its
+ * frame, so this only reports what layout decided.
+ */
+function resize([entry]: ResizeObserverEntry[]) {
+  const [box] = entry.contentBoxSize;
   const dpr = Math.min(2, window.devicePixelRatio);
   send({
     type: "resize",
-    width: Math.max(1, Math.round(cell * cols * dpr)),
-    height: Math.max(1, Math.round(cell * rows * dpr)),
+    width: Math.max(1, Math.round(box.inlineSize * dpr)),
+    height: Math.max(1, Math.round(box.blockSize * dpr)),
   });
 }
 
@@ -659,11 +667,12 @@ yardCanvas.addEventListener("blur", () => send({ type: "keyboard", square: null 
 $("track-tab").onclick = () => setPalette("track");
 $("cars-tab").onclick = () => setPalette("cars");
 $("undo").onclick = () => send({ type: "undo" });
-$("layouts").onclick = () => {
+// The Layouts button opens the dialog with `command="show-modal"`; reset it as it opens.
+dialog.addEventListener("command", (event) => {
+  if (!(event instanceof CommandEvent) || event.command !== "show-modal") return;
   resetGridNotice();
   dialog.returnValue = "cancel";
-  dialog.showModal();
-};
+});
 const librarySelect = $<HTMLSelectElement>("library-select");
 const removeLibraryButton = $<HTMLButtonElement>("remove-library");
 const s3Form = $<HTMLFormElement>("s3-library");
@@ -672,14 +681,24 @@ let libraryLoad = 0;
 
 function fillLibrarySelect() {
   const libraries = readLibraries(settingsStore);
-  librarySelect.replaceChildren(
-    ...libraries.map((settings) => {
-      const option = document.createElement("option");
-      option.value = settings.id;
-      option.textContent = settings.kind === "s3" ? settings.name + " (S3)" : settings.name;
-      return option;
-    }),
-  );
+  const options = libraries.map((settings) => {
+    const option = document.createElement("option");
+    option.value = settings.id;
+    const name = document.createElement("span");
+    name.textContent = settings.name;
+    option.append(name);
+    if (settings.kind === "s3") {
+      const kind = document.createElement("span");
+      kind.className = "library-kind";
+      kind.textContent = "S3";
+      // The space keeps the option's text, and so its accessible name, as "Name S3".
+      option.append(" ", kind);
+    }
+    return option;
+  });
+  // Keep the picker's button, which shows the chosen option through <selectedcontent>.
+  for (const option of librarySelect.querySelectorAll("option")) option.remove();
+  librarySelect.append(...options);
   librarySelect.value = yardLibrary.settings.id;
   removeLibraryButton.hidden = yardLibrary.settings.id === DEFAULT_LIBRARY.id;
 }
@@ -762,11 +781,13 @@ s3Form.onsubmit = async (event) => {
 };
 
 $("open-library").onclick = () => {
-  dialog.close("library");
   saveName.value = status?.name ?? "";
   fillLibrarySelect();
   void reloadLibrary();
-  library.showModal();
+  void transition("dialog", () => {
+    dialog.close("library");
+    library.showModal();
+  });
 };
 saveName.oninput = () => updateSaveLabel(libraryEntries);
 $("save-layout").onsubmit = async (event) => {
@@ -828,4 +849,4 @@ for (const gesture of ["gesturestart", "gesturechange", "gestureend", "wheel"]) 
 
 fillPalette();
 updateSoundButton();
-new ResizeObserver(resize).observe(frame);
+new ResizeObserver(resize).observe(yardCanvas);

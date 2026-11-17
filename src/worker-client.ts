@@ -61,11 +61,10 @@ export function connectWorker(
     message: Requests[T]["message"],
   ): Promise<Requests[T]["reply"]> {
     const id = (lastRequest += 1);
-    const reply = new Promise<Requests[T]["reply"]>((resolve, reject) =>
-      pending.set(id, { resolve, reject }),
-    );
+    const { promise, resolve, reject } = Promise.withResolvers<Requests[T]["reply"]>();
+    pending.set(id, { resolve, reject });
     send({ ...message, type, id } as Request);
-    return reply;
+    return promise;
   }
 
   return { send, request };

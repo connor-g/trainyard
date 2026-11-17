@@ -1,5 +1,5 @@
 import "fake-indexeddb/auto";
-import { http } from "msw";
+import { delay, http } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "vite-plus/test";
 
@@ -204,6 +204,22 @@ describe("S3 storage requests", () => {
     await storage.update("a", text("two"));
     expect(raced).toBe(true);
     expect(await (await storage.read("a"))?.text()).toBe("two");
+  });
+
+  test("gives up on a bucket that never answers", async () => {
+    const bucketUrl = "https://slow-bucket.s3.us-east-1.amazonaws.com";
+    server.use(
+      http.all(`${bucketUrl}/*`, async () => {
+        await delay("infinite");
+      }),
+    );
+    const storage = new S3Storage({
+      bucketUrl,
+      accessKeyId: "id",
+      secretAccessKey: "secret",
+      timeoutMs: 20,
+    });
+    await expect(storage.list()).rejects.toMatchObject({ name: "TimeoutError" });
   });
 
   test("parses entities and continuation tokens in list pages", () => {
