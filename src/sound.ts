@@ -11,11 +11,6 @@ interface RollingLoop {
   volume: number;
 }
 
-declare global {
-  // Older Safari versions only provide the prefixed constructor.
-  var webkitAudioContext: typeof AudioContext | undefined;
-}
-
 const SILENT = 0.0001;
 const TAU = Math.PI * 2;
 const SAMPLE_RATE = 22050;
@@ -127,8 +122,6 @@ export class TrainSound {
 
   unlock(): void {
     if (!this.enabled || this.hidden) return;
-    const AudioContext = globalThis.AudioContext ?? globalThis.webkitAudioContext;
-    if (!AudioContext) return;
     if (!this.context) {
       try {
         this.context = new AudioContext();

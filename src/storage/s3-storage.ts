@@ -17,6 +17,11 @@ export interface S3StorageOptions {
   readonly region?: string;
   /** Prepended to every key, so several stores can share a bucket. */
   readonly keyPrefix?: string;
+  /**
+   * How long each request may take, in milliseconds, before it fails with a `TimeoutError`.
+   * Defaults to 15 seconds, so a bucket that never answers can't leave the page waiting.
+   */
+  readonly timeoutMs?: number;
 }
 
 export class S3StorageError extends Error {
@@ -30,6 +35,8 @@ export class S3StorageError extends Error {
 
 /** How many times `update` retries when the blob changes between reading its ETag and writing. */
 const UPDATE_ATTEMPTS = 3;
+
+const DEFAULT_TIMEOUT_MS = 15_000;
 
 const XML_ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
 
@@ -66,11 +73,13 @@ export function parseListPage(xml: string): {
 export class S3Storage implements BlobStorage {
   readonly #base: string;
   readonly #keyPrefix: string;
+  readonly #timeoutMs: number;
   readonly #client: AwsClient;
 
   constructor(options: S3StorageOptions) {
     this.#base = options.bucketUrl.replace(/\/+$/, "");
     this.#keyPrefix = options.keyPrefix ?? "";
+    this.#timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.#client = new AwsClient({
       accessKeyId: options.accessKeyId,
       secretAccessKey: options.secretAccessKey,
@@ -88,7 +97,7 @@ export class S3Storage implements BlobStorage {
       url.searchParams.set("list-type", "2");
       url.searchParams.set("prefix", this.#keyPrefix);
       if (token) url.searchParams.set("continuation-token", token);
-      const response = await this.#client.fetch(url);
+      const response = await this.#fetch(url);
       if (!response.ok) throw new S3StorageError("list", response);
       const page = parseListPage(await response.text());
       for (const object of page.objects) {
@@ -109,7 +118,7 @@ export class S3Storage implements BlobStorage {
 
   async read(key: string): Promise<Blob | null> {
     assertKey(key);
-    const response = await this.#client.fetch(this.#objectUrl(key));
+    const response = await this.#fetch(this.#objectUrl(key));
     if (response.status === 404) return null;
     if (!response.ok) throw new S3StorageError("read", response);
     return response.blob();
@@ -118,7 +127,7 @@ export class S3Storage implements BlobStorage {
   async update(key: string, data: Blob): Promise<void> {
     assertKey(key);
     for (let attempt = 0; attempt < UPDATE_ATTEMPTS; attempt += 1) {
-      const head = await this.#client.fetch(this.#objectUrl(key), { method: "HEAD" });
+      const head = await this.#fetch(this.#objectUrl(key), { method: "HEAD" });
       if (head.status === 404) throw new BlobNotFoundError(key);
       if (!head.ok) throw new S3StorageError("update", head);
       const etag = head.headers.get("ETag");
@@ -134,8 +143,13 @@ export class S3Storage implements BlobStorage {
 
   async delete(key: string): Promise<void> {
     assertKey(key);
-    const response = await this.#client.fetch(this.#objectUrl(key), { method: "DELETE" });
+    const response = await this.#fetch(this.#objectUrl(key), { method: "DELETE" });
     if (!response.ok && response.status !== 404) throw new S3StorageError("delete", response);
+  }
+
+  /** A signed request that gives up after the timeout, including while its body is read. */
+  #fetch(input: string | URL, init: RequestInit = {}): Promise<Response> {
+    return this.#client.fetch(input, { ...init, signal: AbortSignal.timeout(this.#timeoutMs) });
   }
 
   #objectUrl(key: string): string {
@@ -144,7 +158,7 @@ export class S3Storage implements BlobStorage {
   }
 
   async #put(key: string, data: Blob, condition: Record<string, string>): Promise<Response> {
-    return this.#client.fetch(this.#objectUrl(key), {
+    return this.#fetch(this.#objectUrl(key), {
       method: "PUT",
       // aws4fetch signs the payload hash, which needs the bytes up front.
       body: await data.arrayBuffer(),

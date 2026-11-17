@@ -233,13 +233,13 @@
     --hover-brightness: 0.97;
     --enter-scale: 0.96;
     --duration-enter: 180ms;
+    --stagger: 30ms;
 
     /* Aspect ratios of the pictures drawn by drawing.ts */
     --ratio-piece: 176 / 120;
     --ratio-yard-thumbnail: 12 / 7;
 
     /* Stacking */
-    --layer-toast: 2;
     --layer-drag: 10;
 
     /* Safe areas (the app runs full-screen from the iPad home screen) */
@@ -419,7 +419,17 @@
     min-block-size: 0;
   }
 
+  /*
+   * The workbench is a size container, and its contents adapt to its size rather than the window's.
+   * As a sidebar it is never wider than --size-sidebar (320px); stacked under the board, it always is:
+   *   (width > 320px)                          stacked, in the portrait layout
+   *   (320px < width <= 544px)                 stacked on a phone
+   *   (width <= 320px) and (height <= 670px)   a short sidebar
+   *   (width <= 320px) and (height <= 460px)   a very short sidebar, as on a landscape phone
+   * Its own grid track gives it a definite size, so size containment costs nothing.
+   */
   .workbench {
+    container: workbench / size;
     padding: var(--panel-padding);
     display: flex;
     flex-direction: column;
@@ -617,15 +627,11 @@
       box-shadow: var(--shadow-segment);
     }
 
-    @media (width <= 560px) and (orientation: portrait) {
+    @container workbench ((320px < width <= 544px)) or ((width <= 320px) and (height <= 670px)) {
       min-block-size: var(--size-12);
     }
 
-    @media (height <= 770px) and (orientation: landscape) {
-      min-block-size: var(--size-12);
-    }
-
-    @media (height <= 540px) and (orientation: landscape) {
+    @container workbench (width <= 320px) and (height <= 460px) {
       min-block-size: var(--size-10);
       font-size: var(--text-caption);
     }
@@ -640,14 +646,6 @@
     grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
     grid-auto-rows: minmax(0, 1fr);
     gap: var(--space-2);
-
-    @media (width <= 1100px) and (orientation: portrait) {
-      gap: var(--space-2);
-    }
-
-    @media (height <= 540px) and (orientation: landscape) {
-      gap: var(--space-2);
-    }
   }
 
   .piece {
@@ -684,7 +682,7 @@
       pointer-events: none;
     }
 
-    @media (width <= 1100px) and (orientation: portrait) {
+    @container workbench (width > 320px) {
       font-size: var(--text-subhead);
 
       & img {
@@ -692,7 +690,7 @@
       }
     }
 
-    @media (width <= 560px) and (orientation: portrait) {
+    @container workbench (320px < width <= 544px) {
       font-size: var(--text-caption2);
 
       & img {
@@ -700,13 +698,13 @@
       }
     }
 
-    @media (height <= 770px) and (orientation: landscape) {
+    @container workbench (width <= 320px) and (height <= 670px) {
       & img {
         inline-size: min(100%, var(--size-20));
       }
     }
 
-    @media (height <= 540px) and (orientation: landscape) {
+    @container workbench (width <= 320px) and (height <= 460px) {
       padding: var(--space-1);
       gap: 0;
       font-size: var(--text-caption2);
@@ -736,8 +734,7 @@
         aspect-ratio: auto;
       }
 
-      @media (width <= 560px) and (orientation: portrait),
-        (height <= 540px) and (orientation: landscape) {
+      @container workbench ((320px < width <= 544px)) or ((width <= 320px) and (height <= 460px)) {
         padding-block: 0 var(--space-1);
         gap: 0;
         font-size: var(--text-caption);
@@ -799,12 +796,12 @@
         0 0 0 var(--space-1) var(--ink);
     }
 
-    @media (width <= 560px) and (orientation: portrait) {
+    @container workbench (320px < width <= 544px) {
       --dot: var(--size-8);
       block-size: var(--size-10);
     }
 
-    @media (height <= 540px) and (orientation: landscape) {
+    @container workbench (width <= 320px) and (height <= 460px) {
       --dot: var(--size-6);
       block-size: var(--size-8);
       padding: var(--hairline);
@@ -812,7 +809,10 @@
   }
 
   /* Yard ---------------------------------------------------------------------------------- */
+  /* The frame is a size container, so the map can fit itself with container query units. */
   .map-frame {
+    container-type: size;
+    anchor-name: --yard-frame;
     position: relative;
     flex: 1;
     min-block-size: 0;
@@ -825,18 +825,25 @@
     background: var(--frame);
   }
 
-  /* `resize()` in yard.ts reads the first grid track sizes as the coordinate gutters. */
+  /*
+   * The map keeps its squares square: each is as large as both the frame's width and its height
+   * allow, after the coordinate gutters. yard.ts reports the board's resulting size to the worker.
+   */
   .map {
     --cols: 17; /* defaults until yard.ts sets the real grid size */
     --rows: 14;
     --row-labels: var(--size-6);
     --column-labels: var(--size-4);
+    --cell: max(
+      var(--hairline),
+      min((100cqi - var(--row-labels)) / var(--cols), (100cqb - var(--column-labels)) / var(--rows))
+    );
 
     display: grid;
     grid-template-columns: var(--row-labels) minmax(0, 1fr);
     grid-template-rows: var(--column-labels) minmax(0, 1fr);
-    inline-size: 100%;
-    block-size: 100%;
+    inline-size: calc(var(--cell) * var(--cols) + var(--row-labels));
+    block-size: calc(var(--cell) * var(--rows) + var(--column-labels));
 
     @media (width <= 560px) and (orientation: portrait) {
       --row-labels: var(--size-4);
@@ -965,6 +972,7 @@
     color: var(--muted);
     font-size: var(--text-caption);
     line-height: var(--leading-snug);
+    text-wrap: pretty;
 
     & .icon {
       inline-size: var(--size-4);
@@ -1012,7 +1020,7 @@
       &[aria-pressed="true"] {
         background: var(--speed-ink);
         border-color: var(--speed-ink);
-        color: var(--panel);
+        color: contrast-color(var(--speed-ink));
       }
     }
 
@@ -1039,19 +1047,26 @@
     }
   }
 
+  /*
+   * A manual popover, so it shows in the top layer above any dialog. Anchor positioning keeps it
+   * centred along the bottom of the yard frame wherever the layout puts the frame.
+   */
   .toast {
-    position: absolute;
-    inset-block-end: var(--space-4);
-    inset-inline-start: 50%;
+    position: fixed;
+    position-anchor: --yard-frame;
+    inset: auto;
+    inset-block-end: calc(anchor(bottom) + var(--space-4));
+    inset-inline-start: anchor(center);
     translate: -50% 0;
-    z-index: var(--layer-toast);
     inline-size: max-content;
-    max-inline-size: calc(100% - var(--space-6));
+    max-inline-size: calc(anchor-size(width) - var(--space-6));
+    margin: 0;
+    border: 0;
+    overflow: visible;
     padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-card);
     /* A translucent material, as HIG uses for transient overlays. */
     background: color-mix(in srgb, var(--toast) var(--mix-material), transparent);
-    -webkit-backdrop-filter: var(--material-filter);
     backdrop-filter: var(--material-filter);
     color: var(--toast-ink);
     font-size: var(--text-footnote);
@@ -1298,22 +1313,80 @@
     }
   }
 
+  /* A customizable select: the button and its picker are styled like the rest of the app. */
   .library-row select {
+    appearance: base-select;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
     inline-size: 100%;
     min-inline-size: 0;
     min-block-size: var(--size-12);
-    padding: 0 var(--space-2);
+    padding: 0 var(--space-3) 0 var(--space-2);
     border: var(--hairline) solid var(--line-strong);
     border-radius: var(--radius-card);
     background: var(--panel);
     color: var(--ink);
     font: inherit;
     font-size: var(--text-body);
+    cursor: pointer;
 
     &:focus-visible {
       outline: var(--focus-ring);
       outline-offset: var(--hairline);
     }
+
+    & > button {
+      display: flex;
+      flex: 1;
+      min-inline-size: 0;
+    }
+
+    &::picker-icon {
+      color: var(--muted);
+    }
+
+    &::picker(select) {
+      appearance: base-select;
+      margin-block: var(--space-1);
+      padding: var(--inset-padding);
+      border: var(--hairline) solid var(--line);
+      border-radius: var(--radius-card);
+      background: var(--panel);
+      color: var(--ink);
+      box-shadow: var(--shadow-lifted);
+    }
+
+    & option {
+      gap: var(--space-2);
+      min-block-size: var(--size-10);
+      padding: 0 var(--space-3) 0 var(--space-2);
+      border-radius: var(--radius-inset);
+      font-size: var(--text-body);
+
+      &:hover,
+      &:focus-visible {
+        background: var(--surface-sunken);
+        outline: none;
+      }
+
+      &:checked {
+        font-weight: var(--semibold);
+      }
+
+      &::checkmark {
+        color: var(--green);
+      }
+    }
+  }
+
+  .library-kind {
+    padding: 0 var(--space-1);
+    border-radius: var(--radius-inset);
+    background: var(--surface-sunken);
+    color: var(--muted);
+    font-size: var(--text-caption);
+    font-weight: var(--semibold);
   }
 
   .add-library {
@@ -1371,6 +1444,7 @@
     margin: var(--space-4) 0 0;
     font-size: var(--text-footnote);
     color: var(--muted);
+    text-wrap: pretty;
 
     &:empty {
       margin: 0;
@@ -1450,9 +1524,12 @@
     white-space: nowrap;
   }
 
-  /* Gentle entrances. `@starting-style` animates from `display: none` without any script. */
+  /*
+   * Gentle entrances. `@starting-style` animates from `display: none` without any script. A
+   * dialog closes at once: animating it out would need the `overlay` property, which Safari lacks.
+   */
   @media (prefers-reduced-motion: no-preference) {
-    dialog[open] {
+    dialog:open {
       transition:
         opacity var(--duration-enter) var(--ease-out),
         scale var(--duration-enter) var(--ease-out);
@@ -1471,15 +1548,70 @@
       }
     }
 
+    /*
+     * The toast fades in and out. `display` transitions discretely so it stays visible while it
+     * fades; where `overlay` is unsupported it leaves the top layer as the fade starts.
+     */
     .toast {
       transition:
         opacity var(--duration-enter) var(--ease-out),
-        translate var(--duration-enter) var(--ease-out);
+        translate var(--duration-enter) var(--ease-out),
+        display var(--duration-enter) allow-discrete,
+        overlay var(--duration-enter) allow-discrete;
 
-      @starting-style {
+      &:not(:popover-open) {
         opacity: 0;
         translate: -50% var(--space-2);
       }
+
+      &:popover-open {
+        @starting-style {
+          opacity: 0;
+          translate: -50% var(--space-2);
+        }
+      }
+    }
+
+    .speed button {
+      transition:
+        background-color var(--duration-enter) var(--ease-out),
+        border-color var(--duration-enter) var(--ease-out),
+        color var(--duration-enter) var(--ease-out);
+    }
+
+    /* Saved yards arrive one after another, in the order they are listed. */
+    .saved-yard {
+      transition:
+        opacity var(--duration-enter) var(--ease-out),
+        translate var(--duration-enter) var(--ease-out);
+      transition-delay: calc((sibling-index() - 1) * var(--stagger));
+
+      @starting-style {
+        opacity: 0;
+        translate: 0 var(--space-2);
+      }
+    }
+
+    /* View transitions, started from yard.ts, which skips them when motion is reduced. */
+    ::view-transition-group(*) {
+      animation-duration: var(--duration-enter);
+      animation-timing-function: var(--ease-out);
+    }
+
+    /*
+     * Switching palettes may resize the board. The board keeps drawing during the transition, so
+     * show only its live image: crossfading the old snapshot would leave ghost trains behind.
+     */
+    [data-transition="palette"] .board {
+      view-transition-name: board;
+    }
+
+    ::view-transition-old(board) {
+      display: none;
+    }
+
+    ::view-transition-new(board) {
+      animation: none;
     }
   }
 }
