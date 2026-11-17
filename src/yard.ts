@@ -405,7 +405,7 @@ for (const size of GRID_SIZES) {
   const dimensions = document.createElement("span");
   dimensions.textContent = size.cols + " × " + size.rows;
   button.append(size.label, dimensions);
-  button.addEventListener("click", async () => {
+  const chooseSize = async () => {
     resetGridNotice();
     if (size.cols === currentSize().cols) return;
     const result = await edit({ type: "resize", size });
@@ -416,7 +416,8 @@ for (const size of GRID_SIZES) {
     gridNote.hidden = false;
     blankAtSize.textContent = "Start blank at " + dimensions.textContent;
     blankAtSize.hidden = false;
-  });
+  };
+  button.addEventListener("click", () => void chooseSize());
   $("grid-sizes").append(button);
 }
 
@@ -746,8 +747,7 @@ removeLibraryButton.addEventListener("click", () => {
   removeLibrary(settingsStore, id);
   void useLibrary(DEFAULT_LIBRARY);
 });
-s3Form.addEventListener("submit", async (event) => {
-  event.preventDefault();
+async function addS3Library() {
   const field = (name: string) =>
     (s3Form.elements.namedItem(name) as HTMLInputElement).value.trim();
   const region = field("region");
@@ -778,6 +778,10 @@ s3Form.addEventListener("submit", async (event) => {
   s3Form.reset();
   $<HTMLDetailsElement>("add-library").open = false;
   await useLibrary(added);
+}
+s3Form.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void addS3Library();
 });
 
 $("open-library").addEventListener("click", () => {
@@ -790,8 +794,7 @@ $("open-library").addEventListener("click", () => {
   });
 });
 saveName.addEventListener("input", () => updateSaveLabel(libraryEntries));
-$("save-layout").addEventListener("submit", async (event) => {
-  event.preventDefault();
+async function saveLayout() {
   const name = saveName.value.trim().slice(0, 48);
   if (!name) {
     libraryNote.textContent = "Enter a name for your yard.";
@@ -812,6 +815,10 @@ $("save-layout").addEventListener("submit", async (event) => {
   void edit({ type: "rename", name });
   library.close();
   notify("Saved " + name + " to " + yardLibrary.settings.name + ".");
+}
+$("save-layout").addEventListener("submit", (event) => {
+  event.preventDefault();
+  void saveLayout();
 });
 const speedButtons = document.querySelectorAll<HTMLButtonElement>("[data-speed]");
 document.querySelector('[data-speed="0"]')!.innerHTML = icon("pause");
