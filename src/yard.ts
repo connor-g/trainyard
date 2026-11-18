@@ -75,7 +75,7 @@ const children = <T extends HTMLElement = HTMLElement>(parent: Element) =>
   Array.from(parent.children) as T[];
 const palette = $("palette");
 const removeZone = $("remove");
-const board = $("board");
+const studio = $("studio");
 const yardCanvas = $<HTMLCanvasElement>("yard-canvas");
 const dialog = $<HTMLDialogElement>("layout-dialog");
 const library = $<HTMLDialogElement>("layout-library");
@@ -365,8 +365,8 @@ function applyStatus(next: Status) {
     button.setAttribute("aria-pressed", String(button.dataset.background === next.background));
   }
   if (resized) {
-    board.style.setProperty("--cols", String(next.cols));
-    board.style.setProperty("--rows", String(next.rows));
+    studio.style.setProperty("--cols", String(next.cols));
+    studio.style.setProperty("--rows", String(next.rows));
   }
 }
 
@@ -882,4 +882,11 @@ new ResizeObserver(() => {
   palette.toggleAttribute("data-scrollable", scrollable);
   palette.tabIndex = scrollable ? 0 : -1;
 }).observe(palette);
+new ResizeObserver(([entry]) => {
+  const height = entry.contentBoxSize[0].blockSize + "px";
+  if (height === studio.style.getPropertyValue("--map-frame-height")) return;
+  // Layout can wrap the footer differently at the new width. Let the observer measure again
+  // on the next frame after the columns have settled.
+  requestAnimationFrame(() => studio.style.setProperty("--map-frame-height", height));
+}).observe($("map-frame"));
 new ResizeObserver(resize).observe(yardCanvas);

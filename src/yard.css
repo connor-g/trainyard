@@ -345,6 +345,9 @@
   }
 
   .studio {
+    --cols: 17; /* defaults until yard.ts sets the real grid size */
+    --rows: 14;
+    --sidebar-width: var(--size-sidebar);
     --sidebar-fluid: 35vw; /* sidebar share of the width on short landscape screens */
     --palette-share: 52%; /* portrait: the track palette's minimum share of the height */
     --palette-weight: 0.8fr;
@@ -352,12 +355,22 @@
     --workbench-share: 70%;
     --gutter-block: var(--space-4);
     --gutter-inline: var(--space-6);
+    --studio-gap: var(--space-4);
+    /* Leave the yard enough width to fill its map frame with square cells when possible. */
+    --yard-width: calc(
+      var(--map-frame-height, 0px) * var(--cols) / var(--rows) + 2 *
+        (var(--panel-padding) + var(--hairline))
+    );
 
     display: grid;
     flex: 1;
-    grid-template-columns: var(--size-sidebar) minmax(0, 1fr);
+    grid-template-columns: clamp(
+        var(--size-sidebar-min),
+        calc(100% - var(--studio-gap) - var(--yard-width)),
+        var(--sidebar-width)
+      ) minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
-    gap: var(--space-4);
+    gap: var(--studio-gap);
     padding-block: var(--gutter-block) max(var(--gutter-block), var(--safe-bottom));
     padding-inline: max(var(--gutter-inline), var(--safe-left))
       max(var(--gutter-inline), var(--safe-right));
@@ -365,19 +378,18 @@
 
     @media (width <= 1100px) {
       --gutter-inline: var(--space-3);
-      grid-template-columns: var(--size-sidebar-compact) minmax(0, 1fr);
-      gap: var(--space-4);
+      --sidebar-width: var(--size-sidebar-compact);
     }
 
     @media (width <= 1100px) and (orientation: portrait) {
       --gutter-block: var(--space-3);
       --gutter-inline: var(--space-3);
+      --studio-gap: var(--space-2);
       grid-template-columns: minmax(0, 1fr);
       grid-template-rows: minmax(0, 1fr) minmax(
           min(var(--workbench-min), var(--workbench-share)),
           1fr
         );
-      gap: var(--space-2);
 
       /* The track palette needs more room than the car palette. */
       &:has(.palette[data-kind="track"]) {
@@ -391,17 +403,12 @@
     @media (width <= 560px) and (orientation: portrait) {
       --gutter-block: var(--space-2);
       --gutter-inline: var(--space-2);
-      gap: var(--space-2);
     }
 
     @media (height <= 540px) and (orientation: landscape) {
       --gutter-block: var(--space-2);
-      grid-template-columns: clamp(
-          var(--size-sidebar-min),
-          var(--sidebar-fluid),
-          var(--size-sidebar)
-        ) minmax(0, 1fr);
-      gap: var(--space-2);
+      --studio-gap: var(--space-2);
+      --sidebar-width: clamp(var(--size-sidebar-min), var(--sidebar-fluid), var(--size-sidebar));
     }
   }
 
@@ -626,6 +633,16 @@
       min-block-size: var(--size-12);
     }
 
+    @container workbench (width <= 240px) {
+      gap: var(--space-1);
+      font-size: var(--text-caption);
+
+      & .icon {
+        inline-size: var(--size-4);
+        block-size: var(--size-4);
+      }
+    }
+
     @container workbench (width <= 320px) and (height <= 460px) {
       min-block-size: var(--size-10);
       font-size: var(--text-caption);
@@ -822,9 +839,6 @@
    * Fill the panel's padded width from the top. Keep square cells when the frame is tall enough.
    */
   .board {
-    --cols: 17; /* defaults until yard.ts sets the real grid size */
-    --rows: 14;
-
     position: relative;
     inline-size: 100%;
     block-size: min(100cqb, 100cqi * var(--rows) / var(--cols));
