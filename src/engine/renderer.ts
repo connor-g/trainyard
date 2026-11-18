@@ -37,7 +37,7 @@ const carKey = (trainId: TrainId, carIndex: number) => trainId + ":" + carIndex;
 /** Picture sizes in pixels; the page's CSS keeps their aspect ratios. */
 const pictureSizes = {
   track: [144, 128],
-  cars: [176, 120],
+  cars: [176, 96],
   ground: [216, 126],
   yard: [288, 168],
 } as const;
@@ -83,6 +83,8 @@ function drawPicture(ctx: Context, spec: PictureSpec, width: number, height: num
         drawTile(ctx, piece.tile, -0.5, -0.5);
         if (piece.tile.type === "tunnel") drawTunnelRoof(ctx, piece.tile, -0.5, -0.5);
       } else {
+        // Center the car and its shadow in the shorter picture.
+        ctx.translate(0, -8);
         ctx.scale(220, 220);
         drawCar(ctx, piece, 0, 0);
       }
