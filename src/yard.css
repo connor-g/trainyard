@@ -153,7 +153,6 @@
     --size-18: calc(var(--spacing) * 18); /* 72px */
     --size-20: calc(var(--spacing) * 20); /* 80px */
     --size-24: calc(var(--spacing) * 24); /* 96px */
-    --size-34: calc(var(--spacing) * 34); /* 136px */
 
     /* Layout sizes */
     --size-sidebar: calc(var(--spacing) * 80); /* 320px */
@@ -233,7 +232,6 @@
     --stagger: 30ms;
 
     /* Aspect ratios of the pictures drawn by drawing.ts */
-    --ratio-piece: 176 / 120;
     --ratio-yard-thumbnail: 12 / 7;
 
     /* Stacking */
@@ -646,17 +644,16 @@
   }
 
   .piece {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-2);
-    padding: var(--space-1) var(--space-1) var(--space-2);
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    min-inline-size: 0;
+    padding: var(--space-1);
     border: var(--hairline) solid var(--line);
     border-radius: var(--radius-card);
     background: var(--surface);
     font-size: clamp(var(--text-caption), var(--fluid-piece), var(--text-callout));
     font-weight: var(--semibold);
+    line-height: var(--leading-tight);
     text-align: center;
     cursor: grab;
     touch-action: none;
@@ -670,66 +667,76 @@
       cursor: grabbing;
     }
 
-    & img {
-      inline-size: min(100%, var(--size-34));
-      block-size: auto;
-      min-block-size: 0;
-      aspect-ratio: var(--ratio-piece);
-      object-fit: contain;
-      pointer-events: none;
-    }
-
     @container workbench (width > 320px) {
       font-size: var(--text-subhead);
-
-      & img {
-        inline-size: min(100%, var(--size-24));
-      }
-    }
-
-    @container workbench (320px < width <= 544px) {
-      font-size: var(--text-caption2);
-
-      & img {
-        max-block-size: var(--size-10);
-      }
-    }
-
-    @container workbench (width <= 320px) and (height <= 670px) {
-      & img {
-        inline-size: min(100%, var(--size-20));
-      }
-    }
-
-    @container workbench (width <= 320px) and (height <= 460px) {
-      padding: var(--space-1);
-      gap: 0;
-      font-size: var(--text-caption2);
-      line-height: var(--leading-none);
     }
   }
 
-  /* Track pieces fill their cell instead of keeping the card's aspect ratio. */
+  .piece-artwork {
+    /* Older WebKit can size a grid item's image against the whole card. */
+    position: relative;
+    overflow: clip;
+
+    & img {
+      position: absolute;
+      inset: 0;
+      inline-size: 100%;
+      block-size: 100%;
+      object-fit: contain;
+      pointer-events: none;
+    }
+  }
+
+  .palette[data-kind="cars"] {
+    grid-auto-rows: minmax(var(--size-14), 1fr);
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    touch-action: pan-y;
+
+    & .piece {
+      gap: var(--space-1);
+      overflow-wrap: break-word;
+    }
+
+    & img {
+      /* Give large cards breathing room without shrinking artwork in tight rows. */
+      --artwork-fill: 80%;
+
+      max-inline-size: max(var(--size-14), var(--artwork-fill));
+      max-block-size: max(var(--size-8), var(--artwork-fill));
+      margin: auto;
+    }
+
+    @container workbench (width >= 280px) and (height <= 540px) {
+      --columns: 4;
+    }
+
+    @container workbench (height <= 540px) {
+      & .piece {
+        font-size: var(--text-caption2);
+      }
+    }
+
+    /* When the tray can scroll, a swipe on a caption scrolls and the artwork starts a drag. */
+    &[data-scrollable] {
+      & .piece {
+        touch-action: pan-y;
+      }
+
+      & .piece-artwork {
+        touch-action: none;
+      }
+    }
+  }
+
+  /* Give track artwork the space above its label. */
   .palette[data-kind="track"] {
     --columns: 2;
     gap: var(--space-2);
 
     & .piece {
-      display: grid;
-      grid-template-rows: minmax(0, 1fr) auto;
-      align-items: stretch;
-      justify-content: stretch;
-      padding: var(--space-1) var(--space-1) var(--space-1);
       gap: var(--space-2);
       font-size: clamp(var(--text-callout), var(--fluid-track), var(--text-title3));
-      line-height: var(--leading-tight);
-
-      & img {
-        inline-size: 100%;
-        block-size: 100%;
-        max-block-size: none;
-        aspect-ratio: auto;
-      }
 
       @container workbench ((320px < width <= 544px)) or ((width <= 320px) and (height <= 460px)) {
         padding-block: 0 var(--space-1);
@@ -763,24 +770,30 @@
     display: grid;
     grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
     gap: var(--space-2);
+
+    /* With roughly two fifths of the workbench height available to colors, use fewer rows
+     * when that space is wider than tall. */
+    @container workbench (aspect-ratio > 2 / 5) {
+      --columns: 4;
+    }
   }
 
   .swatch {
-    --dot: var(--size-10);
+    --swatch-height: clamp(var(--size-8), 7cqh, var(--tap));
 
     display: grid;
     place-items: center;
     min-inline-size: 0;
     inline-size: 100%;
-    block-size: var(--size-12);
-    padding: var(--space-1);
+    block-size: var(--swatch-height);
+    padding: var(--hairline);
     border: var(--hairline) solid transparent;
     border-radius: var(--radius-card);
     background: none;
 
     & span {
       display: block;
-      inline-size: min(100%, var(--dot));
+      inline-size: min(100%, var(--size-10), calc(var(--swatch-height) - var(--space-2)));
       aspect-ratio: 1;
       border-radius: 50%;
       background: var(--swatch);
@@ -791,17 +804,6 @@
       box-shadow:
         0 0 0 var(--hairline) var(--panel),
         0 0 0 var(--space-1) var(--ink);
-    }
-
-    @container workbench (320px < width <= 544px) {
-      --dot: var(--size-8);
-      block-size: var(--size-10);
-    }
-
-    @container workbench (width <= 320px) and (height <= 460px) {
-      --dot: var(--size-6);
-      block-size: var(--size-8);
-      padding: var(--hairline);
     }
   }
 
@@ -1044,7 +1046,7 @@
     border-radius: var(--radius-inset);
     background:
       repeating-linear-gradient(90deg, #8b4020 0 1px, #f0a16c 1px 2px, transparent 2px 4px) center /
-        12px 10px no-repeat,
+        10px 10px no-repeat,
       linear-gradient(light-dark(#ffd1a8, #f3b884), #d67c45 55%, #b3592c);
     box-shadow:
       inset 0 var(--hairline) 0 #ffdbb7,

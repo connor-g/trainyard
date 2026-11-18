@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="manifest" href="/yard.webmanifest" />
     <link rel="icon" href="/yard.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/yard.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="stylesheet" href="/src/yard.css" />
     <title>Caleb's Train Yard</title>
   </head>
@@ -22,13 +22,7 @@
       <div class="top-actions">
         <div class="layout-toolbar">
           <h2 id="layout-name">Meadow Loop</h2>
-          <button
-            type="button"
-            class="button secondary"
-            id="layouts"
-            commandfor="layout-dialog"
-            command="show-modal"
-          ></button>
+          <button type="button" class="button secondary" id="layouts"></button>
           <button
             type="button"
             class="button"
@@ -118,13 +112,7 @@
       <form method="dialog">
         <div class="dialog-header">
           <h2>Layouts</h2>
-          <button
-            type="button"
-            class="close"
-            commandfor="layout-dialog"
-            command="request-close"
-            aria-label="Close"
-          ></button>
+          <button type="button" class="close" aria-label="Close"></button>
         </div>
         <h3 class="layout-heading" id="background-title">Background</h3>
         <div
@@ -153,14 +141,7 @@
     <dialog id="layout-library" aria-labelledby="library-title">
       <div class="dialog-header">
         <h2 id="library-title">Saved yards</h2>
-        <button
-          type="button"
-          class="close"
-          commandfor="layout-library"
-          command="request-close"
-          aria-label="Close"
-          autofocus
-        ></button>
+        <button type="button" class="close" aria-label="Close" autofocus></button>
       </div>
       <section class="library-section" aria-labelledby="storage-title">
         <label for="library-select" id="storage-title">Library</label>

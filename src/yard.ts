@@ -329,11 +329,11 @@ function notify(message: string) {
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 
 /**
- * Runs a DOM update inside a view transition, unless the player prefers reduced motion. `kind` is
- * set on the root while it runs, so the stylesheet can give elements names for that kind alone.
+ * Animates a DOM update when view transitions are supported and motion is allowed. `kind` lets
+ * the stylesheet name the elements that participate in that transition.
  */
 async function transition(kind: string, update: () => void) {
-  if (reducedMotion.matches) return update();
+  if (reducedMotion.matches || !document.startViewTransition) return update();
   const root = document.documentElement;
   root.dataset.transition = kind;
   try {
@@ -379,8 +379,11 @@ for (const [id, symbol, text] of buttons) $(id).innerHTML = icon(symbol) + text;
 $("undo").innerHTML = icon("undo") + "<span>Undo</span>";
 $("layouts").innerHTML = icon("layout") + "<span>Layouts</span>";
 $("layouts").setAttribute("aria-label", "Layouts");
-dialog.querySelector(".close")!.innerHTML = icon("close");
-library.querySelector(".close")!.innerHTML = icon("close");
+for (const modal of [dialog, library]) {
+  const close = modal.querySelector<HTMLButtonElement>(".close")!;
+  close.innerHTML = icon("close");
+  close.onclick = () => modal.close();
+}
 
 for (const [key, name] of Object.entries(BACKGROUNDS) as [Background, string][]) {
   const button = document.createElement("button");
@@ -454,7 +457,10 @@ function fillPalette() {
     const label = document.createElement("span");
     label.textContent =
       paletteKind === "track" ? TRACK[type as TrackType].name : STOCK[type as StockType].name;
-    card.append(picture(piecePicture(heldPiece(paletteItem(type)))), label);
+    const artwork = document.createElement("div");
+    artwork.className = "piece-artwork";
+    artwork.append(picture(piecePicture(heldPiece(paletteItem(type)))));
+    card.append(artwork, label);
     // The item is read when the drag starts, so it carries the color chosen by then.
     card.addEventListener("pointerdown", (event) =>
       beginDrag(event, paletteItem(type as TrackType | StockType)),
@@ -474,10 +480,7 @@ function updatePalette(refreshArt = false) {
   if (refreshArt) {
     for (const card of children(palette)) {
       const piece = card.dataset.piece as TrackType | StockType;
-      void showImage(
-        card.firstElementChild as HTMLImageElement,
-        piecePicture(heldPiece(paletteItem(piece))),
-      );
+      void showImage(card.querySelector("img")!, piecePicture(heldPiece(paletteItem(piece))));
     }
   }
   for (const swatch of children($("swatches")))
@@ -661,12 +664,11 @@ yardCanvas.addEventListener("blur", () => send({ type: "keyboard", square: null 
 $("track-tab").onclick = () => setPalette("track");
 $("cars-tab").onclick = () => setPalette("cars");
 $("undo").onclick = () => send({ type: "undo" });
-// The Layouts button opens the dialog with `command="show-modal"`; reset it as it opens.
-dialog.addEventListener("command", (event) => {
-  if (!(event instanceof CommandEvent) || event.command !== "show-modal") return;
+$("layouts").onclick = () => {
   resetGridNotice();
   dialog.returnValue = "cancel";
-});
+  dialog.showModal();
+};
 const librarySelect = $<HTMLSelectElement>("library-select");
 const removeLibraryButton = $<HTMLButtonElement>("remove-library");
 const s3Form = $<HTMLFormElement>("s3-library");
@@ -858,10 +860,26 @@ for (const activation of ["pointerup", "click", "keydown"]) {
 document.addEventListener("visibilitychange", () => {
   sound.setHidden(document.hidden);
 });
-for (const gesture of ["gesturestart", "gesturechange", "gestureend", "wheel"]) {
+for (const gesture of ["gesturestart", "gesturechange", "gestureend"]) {
   document.addEventListener(gesture, (event) => event.preventDefault(), { passive: false });
 }
+document.addEventListener(
+  "wheel",
+  (event) => {
+    const inCarPalette =
+      palette.hasAttribute("data-scrollable") &&
+      event.target instanceof Node &&
+      palette.contains(event.target);
+    if (!inCarPalette || event.ctrlKey || event.metaKey) event.preventDefault();
+  },
+  { passive: false },
+);
 
 fillPalette();
 updateSoundButton();
+new ResizeObserver(() => {
+  const scrollable = paletteKind === "cars" && palette.scrollHeight > palette.clientHeight;
+  palette.toggleAttribute("data-scrollable", scrollable);
+  palette.tabIndex = scrollable ? 0 : -1;
+}).observe(palette);
 new ResizeObserver(resize).observe(yardCanvas);
