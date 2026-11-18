@@ -2,9 +2,9 @@
 
 A model railway for kids that runs in the browser, designed for my toddler son. Lay tracks, add bridges and tunnels, couple cars to an engine, and watch your trains make their rounds. Start with Meadow Loop, Harbor Line, Pine Summit, or Red Mesa Crossing, or build a yard from scratch.
 
-I built the app entirely with Codex and haven’t personally reviewed any of the code. Most of the app came from a single paragraph-long prompt. I spent a few more hours iterating with Codex based on how my son played with it. The UI was designed for a 13" iPad and has not been tested on any other devices or layouts.
+I built the app entirely with Codex and haven’t personally reviewed any of the code. Most of the app came from a single paragraph-long prompt. I spent a few more hours iterating with Codex based on how my son played with it. The UI has been designed primarily for iPad and hasn't been tested on other devices.
 
-<img width="1600" height="1200" alt="Screenshot 2026-11-13 at 9 09 33 PM" src="https://github.com/user-attachments/assets/b938a882-d6fe-4ac4-9f4a-1aa8d2d290c9" />
+<img width="2224" height="1668" alt="Screenshot of Caleb's Train Yard" src="https://github.com/user-attachments/assets/1a13defd-00d2-417b-a4b4-521acc8202ee" />
 
 ## Run locally
 
